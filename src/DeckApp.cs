@@ -190,6 +190,13 @@ namespace MonitorDeck
             if (on && st != null && !st.DetailsRead) ReadDetails(st);
         }
 
+        public void SetVendorCodes(bool on)
+        {
+            Cfg.VendorCodes = on;
+            Cfg.SaveGeneral();
+            Changed();
+        }
+
         public void SetTopMost(bool on)
         {
             Cfg.TopMost = on;
@@ -226,9 +233,11 @@ namespace MonitorDeck
             ToolStripMenuItem miTop = new ToolStripMenuItem("Sempre in primo piano", null, delegate { SetTopMost(!Cfg.TopMost); });
             ToolStripMenuItem miTray = new ToolStripMenuItem("Chiudi nell'area di notifica", null, delegate { Cfg.CloseToTray = !Cfg.CloseToTray; Cfg.SaveGeneral(); });
             ToolStripMenuItem miAuto = new ToolStripMenuItem("Avvia con Windows", null, delegate { SetAutostart(!GetAutostart()); });
+            ToolStripMenuItem miVendor = new ToolStripMenuItem("Mostra codici del produttore", null, delegate { SetVendorCodes(!Cfg.VendorCodes); });
             m.Items.Add(miTop);
             m.Items.Add(miTray);
             m.Items.Add(miAuto);
+            m.Items.Add(miVendor);
             m.Items.Add(new ToolStripSeparator());
 
             ToolStripMenuItem miUpd = new ToolStripMenuItem("Controlla aggiornamenti", null, delegate { CheckForUpdates(true); });
@@ -249,6 +258,7 @@ namespace MonitorDeck
                 miTray.Checked = Cfg.CloseToTray;
                 miAuto.Checked = GetAutostart();
                 miAutoUpd.Checked = Cfg.AutoUpdate;
+                miVendor.Checked = Cfg.VendorCodes;
                 miUpd.Text = Update != null ? "Aggiorna alla versione " + Update.VersionText + "…" : "Controlla aggiornamenti";
                 miUpd.Enabled = !UpdateBusy;
                 miMonitors.DropDownItems.Clear();
@@ -510,23 +520,27 @@ namespace MonitorDeck
         {
             List<KeyValuePair<string, uint>> list = new List<KeyValuePair<string, uint>>();
             if (st == null) return list;
-            List<KeyValuePair<string, uint>> specific = Cfg.InputsForMonitor(st.Entry.Name, st.Model);
-            if (specific != null) list.AddRange(specific);
-            else if (st.CapsOk && st.CapValues.ContainsKey(Vcp.Input) && st.CapValues[Vcp.Input].Count > 0)
+
+            // 1) sezione [Ingressi NomeMonitor] del file .ini: vince su tutto, nell'ordine scritto
+            List<KeyValuePair<string, uint>> specific = Cfg.InputsForMonitor(st.Title, st.Entry.Name, st.Model);
+            if (specific != null) return new List<KeyValuePair<string, uint>>(specific);
+
+            // 2) ingressi dichiarati dal monitor, 3) elenco [Ingressi] del file .ini, 4) DP / HDMI 1 / HDMI 2
+            List<uint> values = new List<uint>();
+            if (st.CapsOk && st.CapValues.ContainsKey(Vcp.Input) && st.CapValues[Vcp.Input].Count > 0)
             {
-                foreach (uint v in st.CapValues[Vcp.Input]) list.Add(new KeyValuePair<string, uint>(InputName(v), v));
+                values.AddRange(st.CapValues[Vcp.Input]);
+                values.Sort();
             }
-            else list.AddRange(Cfg.Inputs);
-            if (list.Count == 0)
-                foreach (uint v in new uint[] { 0x0F, 0x11, 0x12 }) list.Add(new KeyValuePair<string, uint>(InputName(v), v));
+            else foreach (KeyValuePair<string, uint> kv in Cfg.Inputs) values.Add(kv.Value);
+            if (values.Count == 0) values.AddRange(new uint[] { 0x0F, 0x11, 0x12 });
 
             int cur = st.Cur(Vcp.Input);
-            if (cur > 0)
-            {
-                bool found = false;
-                foreach (KeyValuePair<string, uint> kv in list) if (kv.Value == (uint)cur) found = true;
-                if (!found) list.Add(new KeyValuePair<string, uint>(InputName((uint)cur), (uint)cur));
-            }
+            if (cur > 0 && !values.Contains((uint)cur)) values.Add((uint)cur);
+
+            Dictionary<uint, string> auto = Vcp.InputNames(values);
+            foreach (uint v in values)
+                list.Add(new KeyValuePair<string, uint>(Cfg.InputNameOrNull(v) ?? auto[v], v));
             return list;
         }
 
@@ -534,8 +548,16 @@ namespace MonitorDeck
         {
             string n = Cfg.InputNameOrNull(v);
             if (n != null) return n;
-            VcpDef d = Vcp.Get(Vcp.Input);
-            return d.Values.TryGetValue(v, out n) ? n : "Ingresso " + v;
+            return Vcp.InputNames(new uint[] { v })[v];
+        }
+
+        // Nome da mostrare per un codice VCP: prima quello scelto nel file .ini, poi quello standard.
+        public string CodeName(MonitorState st, byte code)
+        {
+            string n = Cfg.CodeName(code, st != null ? st.Title : null, st != null ? st.Model : null);
+            if (n != null) return n;
+            VcpDef d = Vcp.Get(code);
+            return d != null ? d.Name : "Codice " + Vcp.Hex(code);
         }
 
         public string ChoiceName(MonitorState st, byte code, uint v)
@@ -685,6 +707,7 @@ namespace MonitorDeck
                 case "ingresso":
                 case "input":
                     if (uint.TryParse(arg, out uv)) SetChoice(Vcp.Input, uv, true);
+                    else if (st != null) SwitchInput(st, arg);
                     break;
                 case "luminosita":
                 case "brightness":
@@ -718,6 +741,28 @@ namespace MonitorDeck
                     ToggleWindow();
                     break;
             }
+        }
+
+        // ingresso:HDMI 2 (per nome, come mostrato nella finestra) oppure ingresso:successivo
+        void SwitchInput(MonitorState st, string arg)
+        {
+            List<KeyValuePair<string, uint>> inputs = InputsFor(st);
+            if (inputs.Count == 0) return;
+            if (arg == "successivo" || arg == "next" || arg == "precedente" || arg == "prev")
+            {
+                int cur = st.Cur(Vcp.Input), i = 0;
+                for (int k = 0; k < inputs.Count; k++) if (cur >= 0 && inputs[k].Value == (uint)cur) i = k;
+                i += (arg == "precedente" || arg == "prev") ? inputs.Count - 1 : 1;
+                SetChoice(Vcp.Input, inputs[i % inputs.Count].Value, true);
+                return;
+            }
+            string want = arg.Replace(" ", "");
+            foreach (KeyValuePair<string, uint> kv in inputs)
+                if (string.Equals(kv.Key.Replace(" ", ""), want, StringComparison.OrdinalIgnoreCase)) { SetChoice(Vcp.Input, kv.Value, true); return; }
+            // "HDMI" su un monitor che ha "HDMI 1" e "HDMI 2" (o viceversa): prende la prima che inizia cosi'
+            foreach (KeyValuePair<string, uint> kv in inputs)
+                if (kv.Key.Replace(" ", "").StartsWith(want, StringComparison.OrdinalIgnoreCase)) { SetChoice(Vcp.Input, kv.Value, true); return; }
+            Osd("Ingresso \"" + arg + "\" non trovato", -1, 0);
         }
 
         static int Relative(string arg, int current)

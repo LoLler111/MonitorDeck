@@ -33,14 +33,14 @@ namespace MonitorDeck
         // Modalita' dimostrativa (--demo): due monitor simulati, utile per provare l'interfaccia senza DDC/CI.
         public static bool Demo;
         static readonly Dictionary<long, uint> demoValues = new Dictionary<long, uint>();
-        const string DemoCaps1 = "(prot(monitor)type(LCD)model(AW3423DW)cmds(01 02 03 07 0C E3 F3)vcp(02 04 05 08 10 12 14(01 05 08 0B 0C) 16 18 1A 52 60(0F 11 12) 62 8D(01 02) AC AE B2 B6 C6 C8 C9 CA(01 02) CC(02 03 04 05 0A) D6(01 04 05) DC(00 03 05 F0) DF E0 E1(00 01 02))mccs_ver(2.1)mswhql(1))";
+        const string DemoCaps1 = "(prot(monitor)type(LCD)model(AW3423DWF)cmds(01 02 03 07 0C E3 F3)vcp(02 04 05 08 10 12 14(01 05 08 0B 0C) 16 18 1A 52 60(0F 13 11) 62 8D(01 02) AC AE B2 B6 C6 C8 C9 CA(01 02) CC(02 03 04 05 0A) D6(01 04 05) DC(00 03 05 F0) DF E0 E1 E2(00 01) E3)mccs_ver(2.1)mswhql(1))";
         const string DemoCaps2 = "(prot(monitor)type(LCD)model(DELL U2720Q)vcp(02 04 05 08 10 12 14(05 08 0B) 60(0F 11 1B) AC AE B6 C6 C8 C9 D6(01 04 05) DF)mccs_ver(2.1))";
 
         static List<MonitorEntry> DemoEnumerate()
         {
             List<MonitorEntry> l = new List<MonitorEntry>();
             MonitorEntry a = new MonitorEntry();
-            a.Handle = (IntPtr)1; a.Key = "demo1"; a.Name = "AW3423DW"; a.GoodName = true; a.Primary = true;
+            a.Handle = (IntPtr)1; a.Key = "demo1"; a.Name = "AW3423DWF"; a.GoodName = true; a.Primary = true;
             a.Bounds = new Rectangle(0, 0, 3440, 1440);
             MonitorEntry b = new MonitorEntry();
             b.Handle = (IntPtr)2; b.Key = "demo2"; b.Name = "DELL U2720Q"; b.GoodName = true;
@@ -179,7 +179,7 @@ namespace MonitorDeck
                 uint v;
                 lock (demoValues) demoValues.TryGetValue(((long)h << 8) | code, out v);
                 cur = v;
-                max = Array.IndexOf(new byte[] { 0x60, 0x14, 0x8D, 0xC9, 0xDF, 0xCA, 0xCC, 0xD6, 0xDC, 0xE1 }, code) >= 0 ? 0u : 100u;
+                max = Array.IndexOf(new byte[] { 0x60, 0x14, 0x8D, 0xC9, 0xDF, 0xCA, 0xCC, 0xD6, 0xDC, 0xE2 }, code) >= 0 ? 0u : 100u;
                 if (code == 0xC0) { cur = 1234; max = 0; }
                 return true;
             }

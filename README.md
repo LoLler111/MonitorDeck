@@ -50,17 +50,26 @@ La finestra si riapre nella posizione dove l'avevi lasciata, anche sul secondo s
 | `Ctrl+Alt+0` | Luminosità 0 |
 | `Ctrl+Alt+M` | Apri o chiudi la finestra |
 
-Si cambiano in `MonitorDeck.ini`, sezione `[Scorciatoie]`. Azioni disponibili: `ingresso:15`, `luminosita:+10`, `luminosita:30`, `contrasto:+5`, `volume:+5`, `muto`, `profilo:5`, `monitor:successivo`, `monitor:precedente`, `monitor:2`, `finestra`. Le scorciatoie agiscono sul monitor selezionato nella finestra.
+Si cambiano in `MonitorDeck.ini`, sezione `[Scorciatoie]`. Azioni disponibili: `ingresso:HDMI 2` (nome come nella finestra), `ingresso:15` (valore VCP), `ingresso:successivo`, `luminosita:+10`, `luminosita:30`, `contrasto:+5`, `volume:+5`, `muto`, `profilo:5`, `monitor:successivo`, `monitor:precedente`, `monitor:2`, `finestra`. Le scorciatoie agiscono sul monitor selezionato nella finestra.
 
 ### Nomi degli ingressi
 
-Gli ingressi vengono letti dal monitor. Se vuoi rinominarli, o se il tuo monitor non li comunica, usa la sezione `[Ingressi]` del file `.ini` (`Nome=valore`). Per un solo monitor crea una sezione con il suo nome:
+Gli ingressi vengono letti dal monitor e numerati per tipo (DisplayPort, HDMI 1, HDMI 2…), anche quando il produttore usa codici fuori standard. Se vuoi rinominarli, o se il tuo monitor non li comunica, usa la sezione `[Ingressi]` del file `.ini` (`Nome=valore`). Per un solo monitor crea una sezione con il suo nome:
 
 ```ini
-[Ingressi AW3423DW]
+[Ingressi AW3423DWF]
 PC=15
 Console=17
-Portatile=18
+Portatile=19
+```
+
+### Codici del produttore
+
+I codici VCP da E0 a FF sono riservati ai produttori, che non ne pubblicano il significato (Dell lo dichiara esplicitamente). Per questo sono nascosti: si mostrano con il pulsante in fondo a "Tutti i controlli". Cambiali con cautela, perché su alcuni monitor spengono lo schermo. Se scopri cosa fa un codice, puoi dargli un nome:
+
+```ini
+[Nomi AW3423DWF]
+E0=Livello ombre
 ```
 
 ## Note

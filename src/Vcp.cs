@@ -131,6 +131,48 @@ namespace MonitorDeck
 
         public static bool IsManufacturer(byte code) { return code >= 0xE0; }
 
+        // Nomi degli ingressi numerati sulle porte che il monitor ha davvero.
+        // Molti monitor (es. Alienware/Dell) usano codici fuori standard come 0x13 per la seconda HDMI:
+        // numerando per famiglia, 0x11 + 0x13 diventano "HDMI 1" e "HDMI 2"; una porta sola resta "HDMI".
+        public static Dictionary<uint, string> InputNames(IEnumerable<uint> values)
+        {
+            List<uint> sorted = new List<uint>(values);
+            sorted.Sort();
+            Dictionary<string, List<uint>> fam = new Dictionary<string, List<uint>>();
+            foreach (uint v in sorted)
+            {
+                string f = InputFamily(v);
+                if (f == null) continue;
+                if (!fam.ContainsKey(f)) fam[f] = new List<uint>();
+                if (!fam[f].Contains(v)) fam[f].Add(v);
+            }
+            Dictionary<uint, string> names = new Dictionary<uint, string>();
+            foreach (uint v in sorted)
+            {
+                if (names.ContainsKey(v)) continue;
+                string f = InputFamily(v);
+                if (f != null)
+                {
+                    List<uint> l = fam[f];
+                    names[v] = l.Count == 1 ? f : f + " " + (l.IndexOf(v) + 1);
+                    continue;
+                }
+                string n;
+                names[v] = Get(Input).Values.TryGetValue(v, out n) ? n : "Ingresso " + v;
+            }
+            return names;
+        }
+
+        static string InputFamily(uint v)
+        {
+            if (v == 0x01 || v == 0x02) return "VGA";
+            if (v == 0x03 || v == 0x04) return "DVI";
+            if (v == 0x0F || v == 0x10) return "DisplayPort";
+            if (v >= 0x11 && v <= 0x14) return "HDMI";
+            if (v == 0x1B) return "USB-C";
+            return null;
+        }
+
         public static string Hex(uint v) { return "0x" + v.ToString("X2"); }
 
         public static string ValueName(byte code, uint v)

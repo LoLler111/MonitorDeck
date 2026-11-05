@@ -7,6 +7,18 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: �
 
 ## [Non rilasciato]
 
+### Corretto
+- Gli ingressi con codici fuori standard non compaiono più come "Ingresso 19": le porte vengono numerate per tipo. Ad esempio, su Alienware AW3423DWF il codice 0x13 diventa "HDMI 2"; una porta sola resta "HDMI" o "VGA".
+- Ingressi in ordine: DisplayPort, poi HDMI 1, HDMI 2…
+
+### Modificato
+- I codici del produttore (E0–FF) sono nascosti: i produttori non ne pubblicano il significato e su alcuni monitor spengono lo schermo. Si mostrano con il pulsante in fondo a "Tutti i controlli" o dal menu, insieme a un avviso.
+- Le scorciatoie per l'ingresso accettano il nome (`ingresso:HDMI 2`) e `ingresso:successivo`. Le scorciatoie predefinite create dalla 2.0.0 vengono convertite da sole.
+- Il file `.ini` nuovo non impone più nomi di ingressi e profili: arrivano dal monitor.
+
+### Aggiunto
+- Sezione `[Nomi]` (o `[Nomi NomeMonitor]`) nel file `.ini` per dare un nome a qualsiasi comando, utile per i codici del produttore.
+
 ## [2.0.0] - 2026-11-05
 
 ### Aggiunto

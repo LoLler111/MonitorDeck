@@ -427,21 +427,26 @@ namespace MonitorDeck
                     if (d.Group == group && !Vcp.IsMain(d.Code) && Show(st, d)) rows.Add(d);
                 if (rows.Count > 0) plan.Add(new KeyValuePair<string, List<VcpDef>>(group, rows));
             }
-            List<VcpDef> mf = new List<VcpDef>();
-            if (st.CapsOk)
-            {
-                foreach (byte c in st.Codes)
-                {
-                    if (!Vcp.IsManufacturer(c)) continue;
-                    VcpDef d = new VcpDef();
-                    d.Code = c;
-                    d.Name = "Codice " + Vcp.Hex(c);
-                    d.Kind = st.CapValues.ContainsKey(c) && st.CapValues[c].Count > 0 ? VcpKind.Choice : VcpKind.Continuous;
-                    if (Show(st, d)) mf.Add(d);
-                }
-            }
-            if (mf.Count > 0) plan.Add(new KeyValuePair<string, List<VcpDef>>("Avanzate · codici del produttore", mf));
+            List<VcpDef> mf = VendorRows(st);
+            if (mf.Count > 0 && app.Cfg.VendorCodes) plan.Add(new KeyValuePair<string, List<VcpDef>>("Codici del produttore", mf));
             return plan;
+        }
+
+        // Codici E0-FF: ogni produttore li usa a modo suo e non li documenta (Dell lo dichiara apertamente).
+        List<VcpDef> VendorRows(MonitorState st)
+        {
+            List<VcpDef> mf = new List<VcpDef>();
+            if (!st.CapsOk) return mf;
+            foreach (byte c in st.Codes)
+            {
+                if (!Vcp.IsManufacturer(c)) continue;
+                VcpDef d = new VcpDef();
+                d.Code = c;
+                d.Name = "Codice " + Vcp.Hex(c);
+                d.Kind = st.CapValues.ContainsKey(c) && st.CapValues[c].Count > 0 ? VcpKind.Choice : VcpKind.Continuous;
+                if (Show(st, d)) mf.Add(d);
+            }
+            return mf;
         }
 
         static bool Show(MonitorState st, VcpDef d)
@@ -461,13 +466,16 @@ namespace MonitorDeck
             MonitorState st = app.Current;
             if (st == null) return "none";
             StringBuilder sb = new StringBuilder();
-            sb.Append(st.Key).Append('|').Append(st.DetailsRead).Append('|');
+            sb.Append(st.Key).Append('|').Append(st.DetailsRead).Append('|').Append(app.Cfg.VendorCodes).Append('|');
             if (st.DetailsRead)
+            {
                 foreach (KeyValuePair<string, List<VcpDef>> g in PlanDetails(st))
                 {
                     sb.Append(g.Key).Append(':');
-                    foreach (VcpDef d in g.Value) sb.Append(d.Code).Append(d.Kind).Append(st.Max(d.Code)).Append(',');
+                    foreach (VcpDef d in g.Value) sb.Append(d.Code).Append(d.Kind).Append(st.Max(d.Code)).Append(app.CodeName(st, d.Code)).Append(',');
                 }
+                sb.Append(VendorRows(st).Count);
+            }
             return sb.ToString();
         }
 
@@ -491,11 +499,11 @@ namespace MonitorDeck
             }
 
             List<KeyValuePair<string, List<VcpDef>>> plan = PlanDetails(st);
+            int vendor = VendorRows(st).Count;
             if (plan.Count == 0)
             {
-                details.AddText(new Rectangle(L, y, cw - L, S(40)), "Questo monitor non espone altri controlli via DDC/CI.", fRow, Theme.Muted, TextFormatFlags.WordBreak);
-                details.Height = y + S(44);
-                return;
+                details.AddText(new Rectangle(L, y, cw - L, S(40)), "Questo monitor non espone altri controlli standard via DDC/CI.", fRow, Theme.Muted, TextFormatFlags.WordBreak);
+                y += S(48);
             }
 
             foreach (KeyValuePair<string, List<VcpDef>> g in plan)
@@ -509,8 +517,40 @@ namespace MonitorDeck
                     using (Pen p = new Pen(Theme.Track)) gr.DrawLine(p, r.Left, r.Top, r.Right, r.Top);
                 });
                 y += S(26);
+                bool isVendor = g.Value.Count > 0 && Vcp.IsManufacturer(g.Value[0].Code);
+                if (isVendor)
+                {
+                    details.AddText(new Rectangle(L, y, cw - L - S(4), S(48)),
+                        "Il produttore non ne pubblica il significato: cambiali con cautela (su alcuni monitor spengono lo schermo). Puoi dar loro un nome nella sezione [Nomi] del file .ini.",
+                        fStatus, Theme.Muted, TextFormatFlags.WordBreak);
+                    y += S(50);
+                }
                 foreach (VcpDef d in g.Value) y = DetailRow(st, d, y, cw, L);
+                if (isVendor)
+                {
+                    PillButton hide = new PillButton();
+                    hide.Font = fRow;
+                    hide.Text = "Nascondi codici del produttore";
+                    hide.Bounds = new Rectangle(0, y, cw - S(4), S(34));
+                    hide.Click += delegate { app.SetVendorCodes(false); };
+                    details.Controls.Add(hide);
+                    y += S(34) + S(8);
+                }
                 y += S(12);
+            }
+
+            if (vendor > 0 && !app.Cfg.VendorCodes)
+            {
+                DropButton more = new DropButton();
+                more.Font = fRow;
+                more.GlyphFont = fIcon;
+                more.Glyph = Glyphs.Down;
+                more.ForeColor = Theme.Muted;
+                more.Text = vendor == 1 ? "Mostra 1 codice del produttore" : "Mostra " + vendor + " codici del produttore";
+                more.Bounds = new Rectangle(0, y, cw - S(4), S(34));
+                more.Click += delegate { app.SetVendorCodes(true); };
+                details.Controls.Add(more);
+                y += S(34) + S(12);
             }
             details.Height = y;
         }
@@ -524,7 +564,7 @@ namespace MonitorDeck
                 {
                     Slider sl = new Slider();
                     sl.WheelAdjusts = false;
-                    details.AddText(new Rectangle(L, y, cw - L - S(60), S(18)), d.Name, fRow, Theme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                    details.AddText(new Rectangle(L, y, cw - L - S(60), S(18)), app.CodeName(st, code), fRow, Theme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                     details.AddText(new Rectangle(cw - S(60) - S(4), y, S(60), S(18)), delegate { return sl.Value.ToString(); }, fValue,
                         delegate { return Theme.Text; }, TextFormatFlags.Right | TextFormatFlags.VerticalCenter);
                     y += S(20);
@@ -541,7 +581,7 @@ namespace MonitorDeck
                 }
                 case VcpKind.Choice:
                 {
-                    details.AddText(new Rectangle(L, y, cw - L - S(180), S(34)), d.Name, fRow, Theme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                    details.AddText(new Rectangle(L, y, cw - L - S(180), S(34)), app.CodeName(st, code), fRow, Theme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                     DropButton db = new DropButton();
                     db.Font = fRow;
                     db.GlyphFont = fIcon;
