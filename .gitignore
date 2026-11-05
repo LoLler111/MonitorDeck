@@ -1,0 +1,7 @@
+# Compilato e file locali
+*.exe
+*.exe.old
+*.exe.download
+*.exe.sha256
+MonitorDeck.ini
+notes.md
