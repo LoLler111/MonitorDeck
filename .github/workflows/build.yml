@@ -1,0 +1,20 @@
+# Controlla che il progetto compili a ogni push e pull request.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compila
+        shell: cmd
+        run: build.bat nopause
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MonitorDeck
+          path: MonitorDeck.exe

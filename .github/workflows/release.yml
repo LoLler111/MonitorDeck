@@ -1,0 +1,59 @@
+# Pubblica una release quando invii un tag di versione, es.  git tag v2.1.0 && git push origin v2.1.0
+# Compila MonitorDeck.exe, controlla che la versione nel codice corrisponda al tag,
+# prende le note dalla sezione giusta di CHANGELOG.md e allega exe + impronta SHA-256.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compila
+        shell: cmd
+        run: build.bat nopause
+
+      - name: Controlla la versione
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          $exe = (Get-Item MonitorDeck.exe).VersionInfo.ProductVersion
+          if ($exe -ne $tag) { throw "Il tag ($tag) non corrisponde a AppInfo.Version ($exe)" }
+
+      - name: Note di rilascio dal CHANGELOG
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          $lines = Get-Content CHANGELOG.md -Encoding UTF8
+          $out = @(); $inside = $false
+          foreach ($l in $lines) {
+            if ($l -match '^## \[') {
+              if ($inside) { break }
+              if ($l.StartsWith("## [$tag]")) { $inside = $true; continue }
+            }
+            elseif ($inside -and $l -match '^\[.+\]: ') { break }
+            elseif ($inside) { $out += $l }
+          }
+          if ($out.Count -eq 0) { throw "Manca la sezione ## [$tag] in CHANGELOG.md" }
+          ($out -join "`n").Trim() | Out-File notes.md -Encoding utf8
+
+      - name: Impronta SHA-256
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash MonitorDeck.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  MonitorDeck.exe" | Out-File MonitorDeck.exe.sha256 -Encoding ascii -NoNewline
+
+      - name: Crea la release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release create $tag MonitorDeck.exe MonitorDeck.exe.sha256 --title "Monitor Deck $($tag.TrimStart('v'))" --notes-file notes.md
