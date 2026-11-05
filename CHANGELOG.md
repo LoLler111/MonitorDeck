@@ -7,6 +7,8 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: √
 
 ## [Non rilasciato]
 
+## [2.0.1] - 2026-11-05
+
 ### Corretto
 - Gli ingressi con codici fuori standard non compaiono pi√π come "Ingresso 19": le porte vengono numerate per tipo. Ad esempio, su Alienware AW3423DWF il codice 0x13 diventa "HDMI 2"; una porta sola resta "HDMI" o "VGA".
 - Ingressi in ordine: DisplayPort, poi HDMI 1, HDMI 2‚Ä¶
@@ -51,6 +53,7 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: √
 - Scorciatoie globali configurabili e indicatore a schermo.
 - Impostazioni in `MonitorDeck.ini` e avvio con Windows.
 
-[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.0...HEAD
+[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/LoLler111/MonitorDeck/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/LoLler111/MonitorDeck/releases/tag/v1.0.0
