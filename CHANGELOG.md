@@ -7,6 +7,8 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: Ã
 
 ## [Non rilasciato]
 
+## [2.0.2] - 2026-11-06
+
 ### Aggiunto
 - **Contrasto nella pagina principale**, sotto la luminositÃ .
 - **Nascondere gli ingressi che il monitor non ha**: tasto destro sul pulsante â†’ "Nascondi". Alcuni monitor, per esempio diversi LG, dichiarano anche porte che non esistono. La scelta vale per quel monitor e resta salvata; "Mostra tutti gli ingressi" (sempre col tasto destro) li riporta. Accanto a "Ingresso" si vede quanti sono nascosti.
@@ -61,7 +63,8 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: Ã
 - Scorciatoie globali configurabili e indicatore a schermo.
 - Impostazioni in `MonitorDeck.ini` e avvio con Windows.
 
-[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.1...HEAD
+[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/LoLler111/MonitorDeck/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/LoLler111/MonitorDeck/releases/tag/v1.0.0
