@@ -23,7 +23,7 @@ namespace MonitorDeck
         public DateTime LastDeactivate = DateTime.MinValue;
 
         readonly List<PillButton> inputBtns = new List<PillButton>();
-        Slider slBright, slVol;
+        Slider slBright, slContrast, slVol;
         PillButton btnMute, btnTop;
         DropButton btnExpand;
         Banner banner;
@@ -135,7 +135,7 @@ namespace MonitorDeck
             {
                 sb.Append('|').Append(st.Key).Append(st.MainRead)
                   .Append(st.Supports(Vcp.Input)).Append(st.Supports(Vcp.Brightness))
-                  .Append(st.Supports(Vcp.Volume)).Append(st.Supports(Vcp.Mute));
+                  .Append(st.Supports(Vcp.Volume)).Append(st.Supports(Vcp.Mute)).Append(st.Supports(Vcp.Contrast)).Append(app.HiddenInputCount(st));
                 foreach (KeyValuePair<string, uint> kv in app.InputsFor(st)) sb.Append(kv.Key).Append(kv.Value);
             }
             return sb.ToString();
@@ -150,6 +150,7 @@ namespace MonitorDeck
                 int inp = st.Cur(Vcp.Input);
                 foreach (PillButton b in inputBtns) b.Selected = inp >= 0 && (uint)b.Tag2 == (uint)inp;
                 SyncSlider(slBright, st, Vcp.Brightness);
+                SyncSlider(slContrast, st, Vcp.Contrast);
                 SyncSlider(slVol, st, Vcp.Volume);
                 if (btnMute != null)
                 {
@@ -248,7 +249,7 @@ namespace MonitorDeck
         {
             left.Reset();
             inputBtns.Clear();
-            slBright = slVol = null;
+            slBright = slContrast = slVol = null;
             btnMute = null;
             btnExpand = null;
             banner = null;
@@ -305,6 +306,10 @@ namespace MonitorDeck
                 {
                     any = true;
                     Section(left, "INGRESSO", pad, y);
+                    int hiddenCount = app.HiddenInputCount(st);
+                    if (hiddenCount > 0)
+                        left.AddText(new Rectangle(W - pad - S(150), y - S(1), S(150), S(16)),
+                            hiddenCount == 1 ? "1 nascosto" : hiddenCount + " nascosti", fStatus, Theme.Muted, TextFormatFlags.Right);
                     y += S(22);
                     int n = inputs.Count;
                     int cols = n <= 3 ? n : (n == 4 ? 2 : 3);
@@ -318,6 +323,8 @@ namespace MonitorDeck
                         b.Tag2 = inputs[i].Value;
                         b.Bounds = new Rectangle(pad + c * (bw + gap), y + r * (S(38) + gap), bw, S(38));
                         b.Click += delegate(object sender, EventArgs e) { app.SetChoice(Vcp.Input, (uint)((PillButton)sender).Tag2, false); };
+                        b.MouseUp += delegate(object sender, MouseEventArgs e) { if (e.Button == MouseButtons.Right) ShowInputMenu((PillButton)sender); };
+                        tips.SetToolTip(b, "Tasto destro per nascondere un ingresso che il monitor non ha");
                         left.Controls.Add(b);
                         inputBtns.Add(b);
                     }
@@ -328,6 +335,11 @@ namespace MonitorDeck
                 {
                     any = true;
                     y = SliderRow("LUMINOSITÀ", Glyphs.Brightness, Vcp.Brightness, y, false, out slBright);
+                }
+                if (st.Supports(Vcp.Contrast))
+                {
+                    any = true;
+                    y = SliderRow("CONTRASTO", null, Vcp.Contrast, y, false, out slContrast);
                 }
                 if (st.Supports(Vcp.Volume))
                 {
@@ -388,10 +400,21 @@ namespace MonitorDeck
                 btnMute.Font = fIconBig;
                 btnMute.Click += delegate { app.ToggleMute(); };
             }
-            else
+            else if (glyph != null)
             {
                 left.AddText(new Rectangle(pad - S(8), y, S(32), S(30)), glyph, fIconBig, Theme.Muted,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+            else
+            {
+                // icona del contrasto: cerchio con meta' piena
+                left.AddDraw(new Rectangle(pad - S(8), y, S(32), S(30)), delegate(Graphics g, Rectangle r)
+                {
+                    float d = S(15), cx = r.Left + r.Width / 2f, cy = r.Top + r.Height / 2f;
+                    RectangleF c = new RectangleF(cx - d / 2, cy - d / 2, d, d);
+                    using (Pen pen = new Pen(Theme.Muted, Math.Max(1f, s * 1.2f))) g.DrawEllipse(pen, c);
+                    using (SolidBrush b = new SolidBrush(Theme.Muted)) g.FillPie(b, c.X, c.Y, c.Width, c.Height, 90, 180);
+                });
             }
             sl.Bounds = new Rectangle(pad + S(26), y, W - 2 * pad - S(26) + S(6), S(30));
             sl.ValueChanged += delegate
@@ -635,6 +658,23 @@ namespace MonitorDeck
             m.Show(db, new Point(0, db.Height + S(2)));
         }
 
+        void ShowInputMenu(PillButton b)
+        {
+            uint v = (uint)b.Tag2;
+            MonitorState st = app.Current;
+            if (st == null) return;
+            ContextMenuStrip m = Theme.NewMenu();
+            ToolStripMenuItem hide = new ToolStripMenuItem("Nascondi «" + b.Text + "»", null, delegate { app.HideInput(v); });
+            hide.Enabled = app.InputsFor(st).Count > 1;
+            m.Items.Add(hide);
+            int hidden = app.HiddenInputCount(st);
+            ToolStripMenuItem all = new ToolStripMenuItem(hidden > 0 ? "Mostra tutti gli ingressi (" + hidden + " nascosti)" : "Mostra tutti gli ingressi", null, delegate { app.ShowAllInputs(); });
+            all.Enabled = hidden > 0;
+            m.Items.Add(all);
+            m.Closed += delegate { BeginInvoke((Action)delegate { m.Dispose(); }); };
+            m.Show(b, new Point(0, b.Height + S(2)));
+        }
+
         public void ShowMonitorMenu(Control anchor)
         {
             ContextMenuStrip m = Theme.NewMenu();
@@ -799,7 +839,7 @@ namespace MonitorDeck
 
         protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
-        protected override void OnClick(EventArgs e) { base.OnClick(e); if (!app.UpdateBusy) app.PromptUpdate(); }
+        protected override void OnMouseClick(MouseEventArgs e) { base.OnMouseClick(e); if (e.Button == MouseButtons.Left && !app.UpdateBusy) app.PromptUpdate(); }
 
         protected override void OnPaint(PaintEventArgs e)
         {

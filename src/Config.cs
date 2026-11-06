@@ -17,6 +17,7 @@ namespace MonitorDeck
         public bool CloseToTray = true;
         public bool AutoUpdate = true;
         public bool VendorCodes = false;
+        public Dictionary<string, List<uint>> HiddenInputs = new Dictionary<string, List<uint>>(StringComparer.OrdinalIgnoreCase);
         public int X = int.MinValue, Y = int.MinValue;
         // Nomi dei codici VCP: chiave "" = tutti i monitor, altrimenti nome del monitor
         public Dictionary<string, Dictionary<byte, string>> CodeNames = new Dictionary<string, Dictionary<byte, string>>(StringComparer.OrdinalIgnoreCase);
@@ -42,6 +43,7 @@ namespace MonitorDeck
 "[Ingressi]\r\n" +
 "; Gli ingressi vengono letti dal monitor: qui puoi rinominarli (Nome = valore VCP 60, decimale).\r\n" +
 "; Per un solo monitor crea una sezione col suo nome, es. [Ingressi AW3423DWF]: elenca gli ingressi in quell'ordine.\r\n" +
+"; Per nascondere un ingresso che il monitor non ha: tasto destro sul pulsante nella finestra.\r\n" +
 ";PC=15\r\n" +
 ";Console=17\r\n" +
 "\r\n" +
@@ -102,6 +104,13 @@ namespace MonitorDeck
                     else if (lk == "codiciproduttore") c.VendorCodes = v == "1";
                     else if (lk == "x" && int.TryParse(v, out iv)) c.X = iv;
                     else if (lk == "y" && int.TryParse(v, out iv)) c.Y = iv;
+                }
+                else if (ls == "ingressinascosti")
+                {
+                    List<uint> l = new List<uint>();
+                    foreach (string p in v.Split(new char[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                        if (uint.TryParse(p, out uv) && !l.Contains(uv)) l.Add(uv);
+                    if (l.Count > 0) c.HiddenInputs[k] = l;
                 }
                 else if (ls == "ingressi")
                 {
@@ -169,9 +178,16 @@ namespace MonitorDeck
             vals.Add(new KeyValuePair<string, string>("CodiciProduttore", VendorCodes ? "1" : "0"));
             vals.Add(new KeyValuePair<string, string>("X", X == int.MinValue ? "" : X.ToString(CultureInfo.InvariantCulture)));
             vals.Add(new KeyValuePair<string, string>("Y", Y == int.MinValue ? "" : Y.ToString(CultureInfo.InvariantCulture)));
+            SetKeys("Generale", vals, true);
+        }
+
+        // Scrive delle chiavi in una sezione del file, senza toccare il resto. Valore null = elimina la chiave.
+        void SetKeys(string section, List<KeyValuePair<string, string>> vals, bool sectionAtTop)
+        {
             try
             {
                 List<string> lines = File.Exists(Path) ? new List<string>(File.ReadAllLines(Path, Encoding.UTF8)) : new List<string>();
+                string header = "[" + section + "]";
                 int start = -1, end = lines.Count;
                 for (int i = 0; i < lines.Count; i++)
                 {
@@ -179,31 +195,66 @@ namespace MonitorDeck
                     if (t.StartsWith("[") && t.EndsWith("]"))
                     {
                         if (start >= 0) { end = i; break; }
-                        if (t.Equals("[Generale]", StringComparison.OrdinalIgnoreCase)) start = i;
+                        if (t.Equals(header, StringComparison.OrdinalIgnoreCase)) start = i;
                     }
                 }
                 if (start < 0)
                 {
-                    lines.Insert(0, "");
-                    lines.Insert(0, "[Generale]");
-                    start = 0; end = 1;
+                    if (sectionAtTop)
+                    {
+                        lines.Insert(0, "");
+                        lines.Insert(0, header);
+                        start = 0; end = 1;
+                    }
+                    else
+                    {
+                        if (lines.Count > 0 && lines[lines.Count - 1].Trim().Length > 0) lines.Add("");
+                        lines.Add(header);
+                        start = lines.Count - 1; end = lines.Count;
+                    }
                 }
                 HashSet<string> done = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                for (int i = start + 1; i < end; i++)
+                for (int i = end - 1; i > start; i--)
                 {
                     string t = lines[i].Trim();
                     int eq = t.IndexOf('=');
                     if (eq <= 0 || t.StartsWith(";")) continue;
                     string k = t.Substring(0, eq).Trim();
                     foreach (KeyValuePair<string, string> kv in vals)
-                        if (kv.Key.Equals(k, StringComparison.OrdinalIgnoreCase)) { lines[i] = kv.Key + "=" + kv.Value; done.Add(kv.Key); }
+                    {
+                        if (!kv.Key.Equals(k, StringComparison.OrdinalIgnoreCase)) continue;
+                        if (kv.Value == null || done.Contains(kv.Key)) { lines.RemoveAt(i); end--; }
+                        else lines[i] = kv.Key + "=" + kv.Value;
+                        done.Add(kv.Key);
+                        break;
+                    }
                 }
                 int insertAt = start + 1;
+                if (!sectionAtTop) { insertAt = end; while (insertAt > start + 1 && lines[insertAt - 1].Trim().Length == 0) insertAt--; }
                 foreach (KeyValuePair<string, string> kv in vals)
-                    if (!done.Contains(kv.Key)) { lines.Insert(insertAt, kv.Key + "=" + kv.Value); insertAt++; }
+                    if (kv.Value != null && !done.Contains(kv.Key)) { lines.Insert(insertAt, kv.Key + "=" + kv.Value); insertAt++; }
                 File.WriteAllLines(Path, lines.ToArray(), Encoding.UTF8);
             }
             catch { }
+        }
+
+        // Ingressi nascosti dall'utente (tasto destro sull'ingresso), per nome del monitor
+        public List<uint> HiddenInputsFor(string monitor)
+        {
+            List<uint> l;
+            return monitor != null && HiddenInputs.TryGetValue(monitor, out l) ? l : new List<uint>();
+        }
+
+        public void SetHiddenInputs(string monitor, List<uint> values)
+        {
+            if (string.IsNullOrEmpty(monitor)) return;
+            if (values.Count == 0) HiddenInputs.Remove(monitor);
+            else HiddenInputs[monitor] = values;
+            List<string> parts = new List<string>();
+            foreach (uint v in values) parts.Add(v.ToString(CultureInfo.InvariantCulture));
+            List<KeyValuePair<string, string>> vals = new List<KeyValuePair<string, string>>();
+            vals.Add(new KeyValuePair<string, string>(monitor, values.Count == 0 ? null : string.Join(",", parts.ToArray())));
+            SetKeys("IngressiNascosti", vals, false);
         }
 
         public string CodeName(byte code, params string[] monitorNames)

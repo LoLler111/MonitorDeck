@@ -34,7 +34,7 @@ namespace MonitorDeck
         public static bool Demo;
         static readonly Dictionary<long, uint> demoValues = new Dictionary<long, uint>();
         const string DemoCaps1 = "(prot(monitor)type(LCD)model(AW3423DWF)cmds(01 02 03 07 0C E3 F3)vcp(02 04 05 08 10 12 14(01 05 08 0B 0C) 16 18 1A 52 60(0F 13 11) 62 8D(01 02) AC AE B2 B6 C6 C8 C9 CA(01 02) CC(02 03 04 05 0A) D6(01 04 05) DC(00 03 05 F0) DF E0 E1 E2(00 01) E3)mccs_ver(2.1)mswhql(1))";
-        const string DemoCaps2 = "(prot(monitor)type(LCD)model(DELL U2720Q)vcp(02 04 05 08 10 12 14(05 08 0B) 60(0F 11 1B) AC AE B6 C6 C8 C9 D6(01 04 05) DF)mccs_ver(2.1))";
+        const string DemoCaps2 = "(prot(monitor)type(LCD)model(32MP58)vcp(02 04 05 08 10 12 14(01 05 06 08 0B) 16 18 1A 60(01 03 0F 11 12) 87 AC AE B6 C6 C8 C9 D6(01 04) DC(00 03 05) DF)mccs_ver(2.1))";
 
         static List<MonitorEntry> DemoEnumerate()
         {
@@ -43,8 +43,8 @@ namespace MonitorDeck
             a.Handle = (IntPtr)1; a.Key = "demo1"; a.Name = "AW3423DWF"; a.GoodName = true; a.Primary = true;
             a.Bounds = new Rectangle(0, 0, 3440, 1440);
             MonitorEntry b = new MonitorEntry();
-            b.Handle = (IntPtr)2; b.Key = "demo2"; b.Name = "DELL U2720Q"; b.GoodName = true;
-            b.Bounds = new Rectangle(3440, 0, 3840, 2160);
+            b.Handle = (IntPtr)2; b.Key = "demo2"; b.Name = "LG FULL HD"; b.GoodName = true;
+            b.Bounds = new Rectangle(3440, 0, 1920, 1080);
             l.Add(a); l.Add(b);
             if (demoValues.Count == 0)
             {

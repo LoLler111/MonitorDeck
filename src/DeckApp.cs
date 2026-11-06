@@ -516,7 +516,45 @@ namespace MonitorDeck
             win.UpdateValues();
         }
 
+        // Ingressi da mostrare, senza quelli nascosti dall'utente
         public List<KeyValuePair<string, uint>> InputsFor(MonitorState st)
+        {
+            List<KeyValuePair<string, uint>> all = AllInputsFor(st);
+            if (st == null) return all;
+            List<uint> hidden = Cfg.HiddenInputsFor(st.Title);
+            if (hidden.Count == 0) return all;
+            List<KeyValuePair<string, uint>> list = new List<KeyValuePair<string, uint>>();
+            foreach (KeyValuePair<string, uint> kv in all) if (!hidden.Contains(kv.Value)) list.Add(kv);
+            return list;
+        }
+
+        public int HiddenInputCount(MonitorState st)
+        {
+            return st == null ? 0 : AllInputsFor(st).Count - InputsFor(st).Count;
+        }
+
+        public void HideInput(uint v)
+        {
+            MonitorState st = Current;
+            if (st == null) return;
+            if (InputsFor(st).Count <= 1) return; // almeno un ingresso resta visibile
+            List<uint> hidden = new List<uint>(Cfg.HiddenInputsFor(st.Title));
+            if (!hidden.Contains(v)) hidden.Add(v);
+            Cfg.SetHiddenInputs(st.Title, hidden);
+            SetStatus("Ingresso " + ChoiceName(st, Vcp.Input, v) + " nascosto", false);
+            Changed();
+        }
+
+        public void ShowAllInputs()
+        {
+            MonitorState st = Current;
+            if (st == null) return;
+            Cfg.SetHiddenInputs(st.Title, new List<uint>());
+            SetStatus("Tutti gli ingressi visibili", false);
+            Changed();
+        }
+
+        List<KeyValuePair<string, uint>> AllInputsFor(MonitorState st)
         {
             List<KeyValuePair<string, uint>> list = new List<KeyValuePair<string, uint>>();
             if (st == null) return list;

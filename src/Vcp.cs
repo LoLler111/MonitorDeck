@@ -126,7 +126,7 @@ namespace MonitorDeck
 
         public static bool IsMain(byte code)
         {
-            return code == Brightness || code == Input || code == Volume || code == Mute;
+            return code == Brightness || code == Contrast || code == Input || code == Volume || code == Mute;
         }
 
         public static bool IsManufacturer(byte code) { return code >= 0xE0; }

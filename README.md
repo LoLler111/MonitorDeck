@@ -1,4 +1,4 @@
-# Monitor Deck
+﻿# Monitor Deck
 
 Piccola app per Windows che comanda i monitor via **DDC/CI**: cambio ingresso, luminosità, volume e tutti gli altri comandi che il monitor mette a disposizione, senza usare i tasti dietro lo schermo.
 
@@ -10,9 +10,9 @@ Piccola app per Windows che comanda i monitor via **DDC/CI**: cambio ingresso, l
 
 ## Funzioni
 
-- **Finestra compatta** con i comandi principali: ingresso, luminosità e volume (con muto).
+- **Finestra compatta** con i comandi principali: ingresso, luminosità, contrasto e volume (con muto).
 - **Tutti i monitor collegati**, uno alla volta: frecce, clic sul nome o `Ctrl+Tab`.
-- **Tutti i controlli**: un pulsante allarga la finestra e mostra ogni comando supportato dal monitor (contrasto, modalità immagine, profili colore, RGB, nitidezza, lingua del menu, alimentazione, ripristini, firmware…).
+- **Tutti i controlli**: un pulsante allarga la finestra e mostra ogni comando supportato dal monitor (modalità immagine, profili colore, RGB, nitidezza, lingua del menu, alimentazione, ripristini, firmware…).
 - **Icona nell'area di notifica**: clic per aprire o chiudere la finestra, tasto destro per il menu rapido.
 - **Scorciatoie globali** configurabili, con indicatore a schermo.
 - **Aggiornamenti automatici** dalle release di GitHub, con le novità di ogni versione.
@@ -52,7 +52,9 @@ La finestra si riapre nella posizione dove l'avevi lasciata, anche sul secondo s
 
 Si cambiano in `MonitorDeck.ini`, sezione `[Scorciatoie]`. Azioni disponibili: `ingresso:HDMI 2` (nome come nella finestra), `ingresso:15` (valore VCP), `ingresso:successivo`, `luminosita:+10`, `luminosita:30`, `contrasto:+5`, `volume:+5`, `muto`, `profilo:5`, `monitor:successivo`, `monitor:precedente`, `monitor:2`, `finestra`. Le scorciatoie agiscono sul monitor selezionato nella finestra.
 
-### Nomi degli ingressi
+### Ingressi
+
+Se il monitor elenca porte che non ha (succede con alcuni LG), fai **tasto destro sull'ingresso → Nascondi**. Per farle ricomparire: tasto destro su un ingresso → **Mostra tutti gli ingressi**.
 
 Gli ingressi vengono letti dal monitor e numerati per tipo (DisplayPort, HDMI 1, HDMI 2…), anche quando il produttore usa codici fuori standard. Se vuoi rinominarli, o se il tuo monitor non li comunica, usa la sezione `[Ingressi]` del file `.ini` (`Nome=valore`). Per un solo monitor crea una sezione con il suo nome:
 

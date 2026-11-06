@@ -7,6 +7,13 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: �
 
 ## [Non rilasciato]
 
+### Aggiunto
+- **Contrasto nella pagina principale**, sotto la luminosità.
+- **Nascondere gli ingressi che il monitor non ha**: tasto destro sul pulsante → "Nascondi". Alcuni monitor, per esempio diversi LG, dichiarano anche porte che non esistono. La scelta vale per quel monitor e resta salvata; "Mostra tutti gli ingressi" (sempre col tasto destro) li riporta. Accanto a "Ingresso" si vede quanti sono nascosti.
+
+### Corretto
+- Il tasto destro sui pulsanti non attiva più il comando del pulsante.
+
 ## [2.0.1] - 2026-11-05
 
 ### Corretto

@@ -32,7 +32,10 @@ namespace MonitorDeck
 
         protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { hover = false; down = false; Invalidate(); base.OnMouseLeave(e); }
-        protected override void OnMouseDown(MouseEventArgs e) { down = true; Invalidate(); base.OnMouseDown(e); }
+        MouseButtons pressed;
+        protected override void OnMouseDown(MouseEventArgs e) { pressed = e.Button; down = e.Button == MouseButtons.Left; Invalidate(); base.OnMouseDown(e); }
+        // i controlli WinForms generano Click anche col tasto destro: qui conta solo il sinistro
+        protected override void OnClick(EventArgs e) { if (pressed == MouseButtons.Left) base.OnClick(e); }
         protected override void OnMouseUp(MouseEventArgs e) { down = false; if (!IsDisposed) Invalidate(); base.OnMouseUp(e); }
         protected override void OnTextChanged(EventArgs e) { Invalidate(); base.OnTextChanged(e); }
 
@@ -75,7 +78,10 @@ namespace MonitorDeck
 
         protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { hover = false; down = false; Invalidate(); base.OnMouseLeave(e); }
-        protected override void OnMouseDown(MouseEventArgs e) { down = true; Invalidate(); base.OnMouseDown(e); }
+        MouseButtons pressed;
+        protected override void OnMouseDown(MouseEventArgs e) { pressed = e.Button; down = e.Button == MouseButtons.Left; Invalidate(); base.OnMouseDown(e); }
+        // i controlli WinForms generano Click anche col tasto destro: qui conta solo il sinistro
+        protected override void OnClick(EventArgs e) { if (pressed == MouseButtons.Left) base.OnClick(e); }
         protected override void OnMouseUp(MouseEventArgs e) { down = false; if (!IsDisposed) Invalidate(); base.OnMouseUp(e); }
         protected override void OnTextChanged(EventArgs e) { Invalidate(); base.OnTextChanged(e); }
 
