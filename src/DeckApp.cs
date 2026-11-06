@@ -43,7 +43,8 @@ namespace MonitorDeck
         bool trayHintShown, balloonIsUpdate;
         string notifiedTag;
 
-        class PendingWrite { public IntPtr H; public byte Code; public uint V; }
+        class PendingWrite { public MonitorState St; public IntPtr H; public byte Code; public uint V; public DateTime Due; public long Key; }
+        readonly Dictionary<long, PendingWrite> verifies = new Dictionary<long, PendingWrite>();
 
         public DeckApp(bool startHidden, bool justUpdated)
         {
@@ -504,7 +505,7 @@ namespace MonitorDeck
         {
             MonitorState st = Current;
             if (st == null || !win.Visible || win.WindowState == FormWindowState.Minimized) return;
-            if (!worker.IsIdle || pending.Count > 0) return;
+            if (!worker.IsIdle || pending.Count > 0 || verifies.Count > 0) return;
             if ((DateTime.Now - LastUserChange).TotalMilliseconds < 2500) return;
             ReadMain(st);
         }
@@ -624,8 +625,9 @@ namespace MonitorDeck
             LastUserChange = DateTime.Now;
             long key = ((long)st.Entry.Handle << 8) | code;
             PendingWrite p = new PendingWrite();
-            p.H = st.Entry.Handle; p.Code = code; p.V = (uint)v;
+            p.St = st; p.H = st.Entry.Handle; p.Code = code; p.V = (uint)v; p.Key = key;
             pending[key] = p;
+            Ddc.DemoLog("LEVA " + Vcp.Hex(code) + " -> " + v);
             if (showOsd)
             {
                 Changed();
@@ -637,10 +639,65 @@ namespace MonitorDeck
         // Invia al monitor solo l'ultimo valore degli slider (niente coda di comandi mentre trascini)
         void FlushPending()
         {
-            if (pending.Count == 0 || !worker.IsIdle) return;
-            List<PendingWrite> list = new List<PendingWrite>(pending.Values);
-            pending.Clear();
-            worker.Post(delegate { foreach (PendingWrite p in list) Ddc.Set(p.H, p.Code, p.V); });
+            if (!worker.IsIdle) return;
+            if (pending.Count > 0)
+            {
+                List<PendingWrite> list = new List<PendingWrite>(pending.Values);
+                pending.Clear();
+                foreach (PendingWrite p in list)
+                {
+                    p.Due = DateTime.Now.AddMilliseconds(700); // verifica quando l'utente ha smesso di muovere la leva
+                    verifies[p.Key] = p;
+                }
+                worker.Post(delegate { foreach (PendingWrite p in list) Ddc.Set(p.H, p.Code, p.V); });
+                return;
+            }
+            VerifyWrites();
+        }
+
+        // A fine regolazione rilegge il valore dal monitor: se non l'ha applicato (comando perso), lo rimanda.
+        void VerifyWrites()
+        {
+            if (verifies.Count == 0) return;
+            List<PendingWrite> due = new List<PendingWrite>();
+            foreach (PendingWrite p in verifies.Values) if (p.Due <= DateTime.Now) due.Add(p);
+            if (due.Count == 0) return;
+            foreach (PendingWrite p in due) verifies.Remove(p.Key);
+
+            worker.Post(delegate
+            {
+                Dictionary<PendingWrite, VcpReading> results = new Dictionary<PendingWrite, VcpReading>();
+                Dictionary<PendingWrite, bool> applied = new Dictionary<PendingWrite, bool>();
+                foreach (PendingWrite p in due)
+                {
+                    VcpReading r = null;
+                    bool ok = false;
+                    for (int attempt = 0; attempt < 4; attempt++)
+                    {
+                        Thread.Sleep(attempt == 0 ? 0 : 120 * attempt);
+                        r = Ddc.Read(p.H, p.Code);
+                        if (r.Ok && Math.Abs((long)r.Cur - p.V) <= 1) { ok = true; break; }
+                        if (attempt < 3) Ddc.Set(p.H, p.Code, p.V);
+                    }
+                    Ddc.DemoLog("VERIFICA " + Vcp.Hex(p.Code) + " voluto=" + p.V + " letto=" + (r != null && r.Ok ? r.Cur.ToString() : "?") + (ok ? " OK" : " FALLITA"));
+                    results[p] = r;
+                    applied[p] = ok;
+                }
+                Ui(delegate
+                {
+                    bool failed = false;
+                    foreach (PendingWrite p in due)
+                    {
+                        // l'utente ha ripreso a regolare nel frattempo: il valore nuovo vince
+                        if (pending.ContainsKey(p.Key) || verifies.ContainsKey(p.Key)) continue;
+                        VcpReading r = results[p];
+                        if (r != null && r.Ok) p.St.SetFromMonitor(p.Code, r);
+                        if (!applied[p]) failed = true;
+                    }
+                    if (failed) SetStatus("Il monitor non ha accettato il valore: la leva mostra quello reale", true);
+                    Changed();
+                });
+            });
         }
 
         public void SetChoice(byte code, uint v, bool showOsd)

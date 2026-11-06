@@ -14,7 +14,8 @@ namespace MonitorDeck
         {
             bool updated = HasArg(args, "--updated");
             bool tray = HasArg(args, "--tray");
-            Ddc.Demo = HasArg(args, "--demo");
+            Ddc.DemoLossy = HasArg(args, "--demo-lossy");
+            Ddc.Demo = HasArg(args, "--demo") || Ddc.DemoLossy;
 
             using (Mutex m = new Mutex(false, "MonitorDeck_SingleInstance_v1"))
             {

@@ -185,8 +185,10 @@ namespace MonitorDeck
             }
             for (int i = 0; i < 3; i++)
             {
-                try { if (Native.GetVCPFeatureAndVCPFeatureReply(h, code, out type, out cur, out max)) return true; }
+                Pace(h);
+                try { if (Native.GetVCPFeatureAndVCPFeatureReply(h, code, out type, out cur, out max)) { Mark(h); return true; } }
                 catch { return false; }
+                Mark(h);
                 Thread.Sleep(40);
             }
             return false;
@@ -198,17 +200,52 @@ namespace MonitorDeck
             if (Demo)
             {
                 Thread.Sleep(50);
+                // --demo-lossy: il monitor simulato "perde" un comando su tre, come certi monitor veri sotto raffica
+                if (DemoLossy && demoRandom.Next(3) == 0) { DemoLog("SET " + Vcp.Hex(code) + "=" + value + " PERSO"); return true; }
                 lock (demoValues) demoValues[((long)h << 8) | code] = value;
+                DemoLog("SET " + Vcp.Hex(code) + "=" + value);
                 return true;
             }
             for (int i = 0; i < 3; i++)
             {
-                try { if (Native.SetVCPFeature(h, code, value)) return true; }
+                Pace(h);
+                try { if (Native.SetVCPFeature(h, code, value)) { Mark(h); return true; } }
                 catch { return false; }
+                Mark(h);
                 Thread.Sleep(40);
             }
             return false;
         }
+
+        public static bool DemoLossy;
+        static readonly Random demoRandom = new Random();
+
+        // Registro dei comandi in modalita' demo (demo.log accanto all'exe), per verificare il comportamento.
+        public static void DemoLog(string text)
+        {
+            if (!DemoLossy) return;
+            try
+            {
+                string path = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath), "demo.log");
+                lock (demoRandom) System.IO.File.AppendAllText(path, DateTime.Now.ToString("HH:mm:ss.fff") + "  " + text + "\r\n");
+            }
+            catch { }
+        }
+
+        // MCCS chiede almeno 50 ms tra un comando e il successivo: molti monitor, se li incalzi,
+        // rispondono "ok" ma ignorano il comando. Qui si aspetta sempre il tempo minimo.
+        const int MinGapMs = 60;
+        static readonly Dictionary<IntPtr, DateTime> lastCmd = new Dictionary<IntPtr, DateTime>();
+
+        static void Pace(IntPtr h)
+        {
+            DateTime t;
+            lock (lastCmd) if (!lastCmd.TryGetValue(h, out t)) return;
+            int wait = MinGapMs - (int)(DateTime.UtcNow - t).TotalMilliseconds;
+            if (wait > 0) Thread.Sleep(wait);
+        }
+
+        static void Mark(IntPtr h) { lock (lastCmd) lastCmd[h] = DateTime.UtcNow; }
 
         // Stringa delle capacita' MCCS: elenca i comandi VCP supportati dal monitor (lenta, ~1 s).
         public static string GetCapabilities(IntPtr h)

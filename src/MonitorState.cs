@@ -86,6 +86,15 @@ namespace MonitorDeck
             touched[code] = DateTime.Now;
         }
 
+        // Valore riletto dal monitor dopo una regolazione: diventa quello mostrato dalla leva.
+        public void SetFromMonitor(byte code, VcpReading r)
+        {
+            VcpReading old;
+            if (r.Max == 0 && Values.TryGetValue(code, out old)) r.Max = old.Max;
+            Values[code] = r;
+            touched.Remove(code);
+        }
+
         // Valore cambiato dall'utente da poco: una lettura in corso non deve sovrascriverlo.
         public bool Recent(byte code)
         {

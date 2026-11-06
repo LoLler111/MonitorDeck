@@ -12,6 +12,7 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: �
 - **Nascondere gli ingressi che il monitor non ha**: tasto destro sul pulsante → "Nascondi". Alcuni monitor, per esempio diversi LG, dichiarano anche porte che non esistono. La scelta vale per quel monitor e resta salvata; "Mostra tutti gli ingressi" (sempre col tasto destro) li riporta. Accanto a "Ingresso" si vede quanti sono nascosti.
 
 ### Corretto
+- **Regolazioni perse trascinando le leve**: a volte la leva restava, per esempio, a 0 mentre il monitor no. Ora tra un comando DDC/CI e il successivo c'è sempre la pausa minima richiesta dallo standard. Inoltre, quando smetti di trascinare, l'app rilegge il valore dal monitor e, se non coincide, lo rimanda (fino a tre volte). Se il monitor continua a rifiutarlo, la leva si sposta sul valore reale e compare un avviso.
 - Il tasto destro sui pulsanti non attiva più il comando del pulsante.
 
 ## [2.0.1] - 2026-11-05
