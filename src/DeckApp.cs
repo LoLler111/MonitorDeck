@@ -793,6 +793,7 @@ namespace MonitorDeck
                     null, "Spegni", "Annulla", true)) return;
             }
             IntPtr h = st.Entry.Handle;
+            MonitorEntry entry = st.Entry;
             st.SetLocal(code, v);
             LastUserChange = DateTime.Now;
             Changed();
@@ -802,7 +803,10 @@ namespace MonitorDeck
             if (showOsd) Osd(label + "  ·  " + name, -1, 0);
             worker.Post(delegate
             {
-                bool ok = Ddc.Set(h, code, v);
+                // Molti LG accettano il comando standard ma restano sull'ingresso attuale: prima si manda
+                // quello LG (solo LG con scheda NVIDIA), poi quello standard, che vale per tutti gli altri.
+                bool ok = code == Vcp.Input && LgInput.Set(entry, v);
+                if (Ddc.Set(h, code, v)) ok = true;
                 Ui(delegate { SetStatus(ok ? label + ": " + name : "Comando non riuscito (" + label + ")", !ok); });
             });
         }
