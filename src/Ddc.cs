@@ -15,6 +15,7 @@ namespace MonitorDeck
         public string Name;
         public bool GoodName;       // false = nome generico ("Schermo 2")
         public string Device;
+        public string PnpId;        // dall'EDID, es. "GSM7766" (GSM = LG)
         public Rectangle Bounds;
         public bool Primary;
         public override string ToString() { return Name; }
@@ -72,7 +73,8 @@ namespace MonitorDeck
             }
             held.Clear();
 
-            Dictionary<string, string> friendly = FriendlyNames();
+            Dictionary<string, string> pnpIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string> friendly = FriendlyNames(pnpIds);
 
             List<IntPtr> hmons = new List<IntPtr>();
             Native.MonitorEnumProc proc = delegate(IntPtr h, IntPtr dc, ref Native.RECT r, IntPtr d) { hmons.Add(h); return true; };
@@ -92,8 +94,9 @@ namespace MonitorDeck
                 if (!Native.GetPhysicalMonitorsFromHMONITOR(hmon, count, arr)) continue;
                 held.Add(arr);
 
-                string fname;
+                string fname, pnp;
                 friendly.TryGetValue(mi.szDevice ?? "", out fname);
+                pnpIds.TryGetValue(mi.szDevice ?? "", out pnp);
 
                 for (int i = 0; i < arr.Length; i++)
                 {
@@ -101,6 +104,7 @@ namespace MonitorDeck
                     MonitorEntry e = new MonitorEntry();
                     e.Handle = pm.hPhysicalMonitor;
                     e.Device = mi.szDevice;
+                    if (i == 0) e.PnpId = pnp;
                     e.Bounds = Rectangle.FromLTRB(mi.rcMonitor.Left, mi.rcMonitor.Top, mi.rcMonitor.Right, mi.rcMonitor.Bottom);
                     e.Primary = (mi.dwFlags & 1) != 0;
                     e.Key = mi.szDevice + "#" + i + "|" + pm.szPhysicalMonitorDescription;
@@ -123,8 +127,8 @@ namespace MonitorDeck
             return result;
         }
 
-        // \\.\DISPLAY1 -> "AW3423DW"
-        static Dictionary<string, string> FriendlyNames()
+        // \\.\DISPLAY1 -> "AW3423DW"; in pnpIds: \\.\DISPLAY1 -> "DELA1F6" (produttore + prodotto dall'EDID)
+        static Dictionary<string, string> FriendlyNames(Dictionary<string, string> pnpIds)
         {
             Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
@@ -152,6 +156,13 @@ namespace MonitorDeck
 
                     if (!string.IsNullOrEmpty(tgt.monitorFriendlyDeviceName) && !map.ContainsKey(src.viewGdiDeviceName))
                         map[src.viewGdiDeviceName] = tgt.monitorFriendlyDeviceName;
+
+                    // \\?\DISPLAY#GSM7766#5&32be1474&0&UID4356#{...} -> GSM7766
+                    string path = tgt.monitorDevicePath ?? "";
+                    int a = path.IndexOf("DISPLAY#", StringComparison.OrdinalIgnoreCase);
+                    int b = a >= 0 ? path.IndexOf('#', a + 8) : -1;
+                    if (b > a + 8 && !pnpIds.ContainsKey(src.viewGdiDeviceName))
+                        pnpIds[src.viewGdiDeviceName] = path.Substring(a + 8, b - a - 8);
                 }
             }
             catch { }

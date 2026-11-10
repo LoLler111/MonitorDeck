@@ -9,6 +9,7 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: �
 
 ### Corretto
 - **"Il monitor non risponde" con monitor che supportano DDC/CI**: Windows può assegnare al monitor l'handle 0, che è valido, ma l'app lo scartava senza nemmeno inviare il comando. Succedeva soprattutto quando Monitor Deck è l'unico programma che parla col monitor (per esempio con un solo LG UltraGear in DisplayPort): ingressi, luminosità e "Tutti i controlli" restavano vuoti.
+- **Cambio ingresso sui monitor LG**: molti LG (per esempio gli UltraGear) accettano il comando standard ma restano sull'ingresso attuale. Con una scheda NVIDIA l'app ora invia anche il comando LG dedicato, e il cambio funziona. Per tornare al PC, però, serve il tasto del monitor: sull'ingresso non attivo questi monitor non ricevono comandi.
 
 ## [2.1.0] - 2026-11-10
 

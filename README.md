@@ -86,6 +86,7 @@ E0=Livello ombre
 - In modalità HDR molti monitor bloccano la luminosità: non è un limite dell'app.
 - Le app del produttore (Alienware, Dell Display Manager…) possono restare aperte. Se però applicano profili automatici per applicazione, reimposteranno la luminosità quando cambi finestra.
 - Alcuni monitor, una volta spenti via DDC/CI, si riaccendono solo con il tasto: l'app chiede conferma prima.
+- Molti LG (per esempio gli UltraGear) ignorano il comando standard per cambiare ingresso. Con una scheda NVIDIA l'app invia anche il comando LG dedicato. Una volta passato a un altro ingresso, il monitor non riceve più comandi dal PC: per tornare usa il tasto del monitor.
 
 ## Compilare
 
