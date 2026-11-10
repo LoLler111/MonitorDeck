@@ -11,9 +11,13 @@ namespace MonitorDeck
         readonly float s;
         readonly Font fTitle, fBody, fButton;
         readonly string title, body;
-        Rectangle rTitle, rBody, rNotes;
+        Rectangle rTitle, rBody, rNotes, rInput;
+        TextBox input;
 
         DarkDialog(string title, string body, string notes, string okText, string cancelText, bool danger)
+            : this(title, body, notes, null, okText, cancelText, danger) { }
+
+        DarkDialog(string title, string body, string notes, string inputText, string okText, string cancelText, bool danger)
         {
             this.title = title;
             this.body = body;
@@ -57,6 +61,21 @@ namespace MonitorDeck
                 Controls.Add(tb);
                 y += rNotes.Height + S(18);
             }
+            else if (inputText != null)
+            {
+                rInput = new Rectangle(pad, y, W - 2 * pad, S(38));
+                input = new TextBox();
+                input.BorderStyle = BorderStyle.None;
+                input.BackColor = Theme.Card;
+                input.ForeColor = Theme.Text;
+                input.Font = fBody;
+                input.MaxLength = 60;
+                input.Text = inputText;
+                int th = input.PreferredHeight;
+                input.Bounds = new Rectangle(rInput.X + S(12), rInput.Y + (rInput.Height - th) / 2, rInput.Width - S(24), th);
+                Controls.Add(input);
+                y += rInput.Height + S(18);
+            }
             else y += S(4);
 
             int bh = S(36), bw = S(132), x = W - pad;
@@ -95,8 +114,14 @@ namespace MonitorDeck
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
-            if (e.KeyCode == Keys.Escape) { DialogResult = DialogResult.Cancel; Close(); }
-            else if (e.KeyCode == Keys.Enter) { DialogResult = DialogResult.OK; Close(); }
+            if (e.KeyCode == Keys.Escape) { e.SuppressKeyPress = true; DialogResult = DialogResult.Cancel; Close(); }
+            else if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; DialogResult = DialogResult.OK; Close(); }
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            if (input != null) { input.Focus(); input.SelectAll(); }
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -115,6 +140,12 @@ namespace MonitorDeck
             if (!rBody.IsEmpty)
                 TextRenderer.DrawText(g, body, fBody, rBody, Theme.Muted, TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
             if (!rNotes.IsEmpty) Theme.FillRound(g, rNotes, S(10), Theme.Card);
+            if (!rInput.IsEmpty)
+            {
+                Theme.FillRound(g, rInput, S(10), Theme.Card);
+                using (GraphicsPath p = Theme.Round(new RectangleF(rInput.X + 0.5f, rInput.Y + 0.5f, rInput.Width - 1, rInput.Height - 1), S(10)))
+                using (Pen pen = new Pen(Theme.Accent)) g.DrawPath(pen, p);
+            }
         }
 
         static IWin32Window OwnerOrNull(Form owner)
@@ -129,6 +160,17 @@ namespace MonitorDeck
                 IWin32Window o = OwnerOrNull(owner);
                 if (o != null) d.StartPosition = FormStartPosition.CenterParent;
                 return d.ShowDialog(o) == DialogResult.OK;
+            }
+        }
+
+        // Chiede un testo: null = annullato
+        public static string Prompt(Form owner, string title, string body, string text, string okText)
+        {
+            using (DarkDialog d = new DarkDialog(title, body, null, text ?? "", okText, "Annulla", false))
+            {
+                IWin32Window o = OwnerOrNull(owner);
+                if (o != null) d.StartPosition = FormStartPosition.CenterParent;
+                return d.ShowDialog(o) == DialogResult.OK ? d.input.Text : null;
             }
         }
 

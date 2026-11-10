@@ -19,6 +19,9 @@ namespace MonitorDeck
         public bool VendorCodes = false;
         public Dictionary<string, List<uint>> HiddenInputs = new Dictionary<string, List<uint>>(StringComparer.OrdinalIgnoreCase);
         public int X = int.MinValue, Y = int.MinValue;
+        // Nomi scelti dall'utente nella finestra (tasto destro): monitor e ingressi di un monitor
+        public Dictionary<string, string> MonitorNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Dictionary<uint, string>> InputRenames = new Dictionary<string, Dictionary<uint, string>>(StringComparer.OrdinalIgnoreCase);
         // Nomi dei codici VCP: chiave "" = tutti i monitor, altrimenti nome del monitor
         public Dictionary<string, Dictionary<byte, string>> CodeNames = new Dictionary<string, Dictionary<byte, string>>(StringComparer.OrdinalIgnoreCase);
         public List<KeyValuePair<string, uint>> Inputs = new List<KeyValuePair<string, uint>>();
@@ -43,7 +46,7 @@ namespace MonitorDeck
 "[Ingressi]\r\n" +
 "; Gli ingressi vengono letti dal monitor: qui puoi rinominarli (Nome = valore VCP 60, decimale).\r\n" +
 "; Per un solo monitor crea una sezione col suo nome, es. [Ingressi AW3423DWF]: elenca gli ingressi in quell'ordine.\r\n" +
-"; Per nascondere un ingresso che il monitor non ha: tasto destro sul pulsante nella finestra.\r\n" +
+"; Per rinominare o nascondere un ingresso basta il tasto destro sul pulsante nella finestra.\r\n" +
 ";PC=15\r\n" +
 ";Console=17\r\n" +
 "\r\n" +
@@ -111,6 +114,20 @@ namespace MonitorDeck
                     foreach (string p in v.Split(new char[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries))
                         if (uint.TryParse(p, out uv) && !l.Contains(uv)) l.Add(uv);
                     if (l.Count > 0) c.HiddenInputs[k] = l;
+                }
+                else if (ls == "nomimonitor")
+                {
+                    if (v.Length > 0) c.MonitorNames[k] = v;
+                }
+                else if (ls == "nomiingressi")
+                {
+                    // Monitor/valore = nome: il nome del monitor puo' contenere "/", il valore no
+                    int sl = k.LastIndexOf('/');
+                    if (sl <= 0 || v.Length == 0 || !uint.TryParse(k.Substring(sl + 1).Trim(), out uv)) continue;
+                    string mon = k.Substring(0, sl).Trim();
+                    Dictionary<uint, string> map;
+                    if (!c.InputRenames.TryGetValue(mon, out map)) { map = new Dictionary<uint, string>(); c.InputRenames[mon] = map; }
+                    map[uv] = v;
                 }
                 else if (ls == "ingressi")
                 {
@@ -255,6 +272,50 @@ namespace MonitorDeck
             List<KeyValuePair<string, string>> vals = new List<KeyValuePair<string, string>>();
             vals.Add(new KeyValuePair<string, string>(monitor, values.Count == 0 ? null : string.Join(",", parts.ToArray())));
             SetKeys("IngressiNascosti", vals, false);
+        }
+
+        public string MonitorNameOrNull(string key)
+        {
+            string n;
+            return key != null && MonitorNames.TryGetValue(key, out n) ? n : null;
+        }
+
+        // Nome vuoto o null = torna al nome originale
+        public void SetMonitorName(string key, string name)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            name = CleanName(name);
+            if (name == null) MonitorNames.Remove(key); else MonitorNames[key] = name;
+            List<KeyValuePair<string, string>> vals = new List<KeyValuePair<string, string>>();
+            vals.Add(new KeyValuePair<string, string>(key, name));
+            SetKeys("NomiMonitor", vals, false);
+        }
+
+        public string InputRenameOrNull(string monitor, uint v)
+        {
+            Dictionary<uint, string> map;
+            string n;
+            return monitor != null && InputRenames.TryGetValue(monitor, out map) && map.TryGetValue(v, out n) ? n : null;
+        }
+
+        public void SetInputRename(string monitor, uint v, string name)
+        {
+            if (string.IsNullOrEmpty(monitor)) return;
+            name = CleanName(name);
+            Dictionary<uint, string> map;
+            if (!InputRenames.TryGetValue(monitor, out map)) { map = new Dictionary<uint, string>(); InputRenames[monitor] = map; }
+            if (name == null) map.Remove(v); else map[v] = name;
+            if (map.Count == 0) InputRenames.Remove(monitor);
+            List<KeyValuePair<string, string>> vals = new List<KeyValuePair<string, string>>();
+            vals.Add(new KeyValuePair<string, string>(monitor + "/" + v.ToString(CultureInfo.InvariantCulture), name));
+            SetKeys("NomiIngressi", vals, false);
+        }
+
+        public static string CleanName(string name)
+        {
+            if (name == null) return null;
+            name = name.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            return name.Length == 0 ? null : name;
         }
 
         public string CodeName(byte code, params string[] monitorNames)

@@ -31,7 +31,8 @@ Sul monitor deve essere attivo **DDC/CI** (di solito nel menu del monitor, sotto
 | Dove | Cosa fa |
 |---|---|
 | Frecce ‹ › sulla scheda del monitor | Passa al monitor precedente o successivo (e lo evidenzia a schermo) |
-| Clic sul nome del monitor | Elenco di tutti i monitor |
+| Clic sul nome del monitor | Elenco di tutti i monitor e **Rinomina** del monitor selezionato |
+| Tasto destro su un ingresso | Rinomina o nascondi l'ingresso |
 | **Tutti i controlli** | Allarga o riduce la finestra |
 | Icona puntina | Sempre in primo piano |
 | `⋯` | Menu: avvio con Windows, aggiornamenti, impostazioni, informazioni |
@@ -54,9 +55,15 @@ Si cambiano in `MonitorDeck.ini`, sezione `[Scorciatoie]`. Azioni disponibili: `
 
 ### Ingressi
 
+Alcuni monitor danno alle porte il nome sbagliato (per esempio certi LG chiamano "DVI" l'ingresso HDMI). Fai **tasto destro sull'ingresso → Rinomina** e scrivi il nome che preferisci, anche "PS5" o "Portatile". Il nome vale solo per quel monitor; lasciandolo vuoto, o con "Torna al nome originale", si ripristina quello di partenza. Le scorciatoie scritte con il nome originale (`ingresso:DVI`) continuano a funzionare.
+
+Allo stesso modo puoi dare un nome a ogni monitor: clic sul nome del monitor → **Rinomina**. Con due monitor dello stesso modello ognuno ha il suo nome.
+
 Se il monitor elenca porte che non ha (succede con alcuni LG), fai **tasto destro sull'ingresso → Nascondi**. Per farle ricomparire: tasto destro su un ingresso → **Mostra tutti gli ingressi**.
 
-Gli ingressi vengono letti dal monitor e numerati per tipo (DisplayPort, HDMI 1, HDMI 2…), anche quando il produttore usa codici fuori standard. Se vuoi rinominarli, o se il tuo monitor non li comunica, usa la sezione `[Ingressi]` del file `.ini` (`Nome=valore`). Per un solo monitor crea una sezione con il suo nome:
+I nomi scelti nella finestra finiscono nelle sezioni `[NomiIngressi]` e `[NomiMonitor]` del file `.ini`.
+
+Gli ingressi vengono letti dal monitor e numerati per tipo (DisplayPort, HDMI 1, HDMI 2…), anche quando il produttore usa codici fuori standard. Se il tuo monitor non li comunica, usa la sezione `[Ingressi]` del file `.ini` (`Nome=valore`). Per un solo monitor crea una sezione con il suo nome:
 
 ```ini
 [Ingressi AW3423DWF]

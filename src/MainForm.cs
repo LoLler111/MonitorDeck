@@ -324,7 +324,7 @@ namespace MonitorDeck
                         b.Bounds = new Rectangle(pad + c * (bw + gap), y + r * (S(38) + gap), bw, S(38));
                         b.Click += delegate(object sender, EventArgs e) { app.SetChoice(Vcp.Input, (uint)((PillButton)sender).Tag2, false); };
                         b.MouseUp += delegate(object sender, MouseEventArgs e) { if (e.Button == MouseButtons.Right) ShowInputMenu((PillButton)sender); };
-                        tips.SetToolTip(b, "Tasto destro per nascondere un ingresso che il monitor non ha");
+                        tips.SetToolTip(b, "Tasto destro per rinominare o nascondere l'ingresso");
                         left.Controls.Add(b);
                         inputBtns.Add(b);
                     }
@@ -664,6 +664,13 @@ namespace MonitorDeck
             MonitorState st = app.Current;
             if (st == null) return;
             ContextMenuStrip m = Theme.NewMenu();
+            m.Items.Add(new ToolStripMenuItem("Rinomina «" + b.Text + "»…", null, delegate { app.RenameInput(v); }));
+            if (app.InputRenamed(st, v))
+            {
+                string original = app.BaseInputName(st, v);
+                m.Items.Add(new ToolStripMenuItem("Torna al nome originale («" + original + "»)", null, delegate { app.SetInputName(st, v, null); }));
+            }
+            m.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem hide = new ToolStripMenuItem("Nascondi «" + b.Text + "»", null, delegate { app.HideInput(v); });
             hide.Enabled = app.InputsFor(st).Count > 1;
             m.Items.Add(hide);
@@ -808,7 +815,7 @@ namespace MonitorDeck
             if (st == null) { name = "Nessun monitor DDC/CI"; sub = "Clicca per aggiornare l'elenco"; }
             else
             {
-                name = st.Title;
+                name = app.MonitorName(st);
                 sub = st.Entry.Bounds.Width + "×" + st.Entry.Bounds.Height;
                 if (st.Entry.Primary) sub += "  ·  principale";
                 if (app.Monitors.Count > 1) sub += "  ·  " + (app.CurrentIndex + 1) + " di " + app.Monitors.Count;

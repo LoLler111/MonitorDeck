@@ -7,6 +7,10 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: �
 
 ## [Non rilasciato]
 
+### Aggiunto
+- **Rinominare gli ingressi**: tasto destro sul pulsante → "Rinomina". Utile quando il monitor dà alla porta il nome sbagliato, come certi LG che chiamano "DVI" l'ingresso HDMI, o per scrivere direttamente "PS5" o "Portatile". Il nome vale per quel monitor, resta salvato e compare anche nel menu dell'area di notifica; "Torna al nome originale" lo annulla. Le scorciatoie con il nome originale continuano a funzionare.
+- **Rinominare i monitor**: clic sul nome del monitor → "Rinomina". Il nuovo nome compare nella finestra, nell'elenco dei monitor e nell'indicatore a schermo. Due monitor dello stesso modello possono avere nomi diversi.
+
 ## [2.0.2] - 2026-11-06
 
 ### Aggiunto

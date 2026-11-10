@@ -291,12 +291,17 @@ namespace MonitorDeck
             {
                 int idx = i;
                 MonitorState st = Monitors[i];
-                string label = (i + 1) + ".  " + st.Title + "   " + st.Entry.Bounds.Width + "×" + st.Entry.Bounds.Height;
+                string label = (i + 1) + ".  " + MonitorName(st) + "   " + st.Entry.Bounds.Width + "×" + st.Entry.Bounds.Height;
                 ToolStripMenuItem it = new ToolStripMenuItem(label, null, delegate { SelectMonitor(idx, true); });
                 it.Checked = i == CurrentIndex;
                 items.Add(it);
             }
-            if (Monitors.Count > 0) items.Add(new ToolStripSeparator());
+            if (Monitors.Count > 0)
+            {
+                items.Add(new ToolStripSeparator());
+                MonitorState cur = Current;
+                items.Add(new ToolStripMenuItem("Rinomina «" + MonitorName(cur) + "»…", null, delegate { RenameMonitor(cur); }));
+            }
             items.Add(new ToolStripMenuItem("Aggiorna elenco monitor", null, delegate { RefreshMonitors(); }));
         }
 
@@ -382,9 +387,9 @@ namespace MonitorDeck
             Cfg.MonitorIndex = index;
             Cfg.SaveGeneral();
             MonitorState st = Current;
-            if (flash) osd.Flash(st.Title, -1, 0, st.Entry.Bounds);
+            if (flash) osd.Flash(MonitorName(st), -1, 0, st.Entry.Bounds);
             if (!changed) return;
-            Status = "Monitor: " + st.Title;
+            Status = "Monitor: " + MonitorName(st);
             StatusIsError = false;
             Changed();
             LoadMonitor(st, false);
@@ -555,7 +560,20 @@ namespace MonitorDeck
             Changed();
         }
 
+        // Con i nomi scelti dall'utente nella finestra (sezione [NomiIngressi]) al posto di quelli di base
         List<KeyValuePair<string, uint>> AllInputsFor(MonitorState st)
+        {
+            List<KeyValuePair<string, uint>> list = BaseInputsFor(st);
+            if (st == null) return list;
+            for (int i = 0; i < list.Count; i++)
+            {
+                string n = Cfg.InputRenameOrNull(st.Title, list[i].Value);
+                if (n != null) list[i] = new KeyValuePair<string, uint>(n, list[i].Value);
+            }
+            return list;
+        }
+
+        List<KeyValuePair<string, uint>> BaseInputsFor(MonitorState st)
         {
             List<KeyValuePair<string, uint>> list = new List<KeyValuePair<string, uint>>();
             if (st == null) return list;
@@ -581,6 +599,70 @@ namespace MonitorDeck
             foreach (uint v in values)
                 list.Add(new KeyValuePair<string, uint>(Cfg.InputNameOrNull(v) ?? auto[v], v));
             return list;
+        }
+
+        // Nome di base dell'ingresso (dal monitor o dal file .ini), senza la rinomina dell'utente
+        public string BaseInputName(MonitorState st, uint v)
+        {
+            foreach (KeyValuePair<string, uint> kv in BaseInputsFor(st)) if (kv.Value == v) return kv.Key;
+            return InputName(v);
+        }
+
+        public bool InputRenamed(MonitorState st, uint v)
+        {
+            return st != null && Cfg.InputRenameOrNull(st.Title, v) != null;
+        }
+
+        public void RenameInput(uint v)
+        {
+            MonitorState st = Current;
+            if (st == null) return;
+            string original = BaseInputName(st, v);
+            string name = DarkDialog.Prompt(VisibleWin(), "Rinomina ingresso",
+                "Nome da mostrare per questo ingresso di " + MonitorName(st) + ". Lascia vuoto per tornare a \"" + original + "\".",
+                ChoiceName(st, Vcp.Input, v), "Rinomina");
+            if (name == null) return;
+            SetInputName(st, v, name);
+        }
+
+        public void SetInputName(MonitorState st, uint v, string name)
+        {
+            string original = BaseInputName(st, v);
+            name = Config.CleanName(name);
+            if (name != null && name == original) name = null;
+            Cfg.SetInputRename(st.Title, v, name);
+            SetStatus(name == null ? "Ingresso " + original + ": nome originale" : "Ingresso " + original + " rinominato in " + name, false);
+            Changed();
+        }
+
+        // ------------------------------------------------------------ nomi dei monitor
+
+        // Chiave nel file .ini: il nome del monitor; con due monitor uguali, anche l'uscita della scheda video
+        string MonitorKey(MonitorState st)
+        {
+            int same = 0;
+            foreach (MonitorState m in Monitors) if (string.Equals(m.Title, st.Title, StringComparison.OrdinalIgnoreCase)) same++;
+            return same > 1 && !string.IsNullOrEmpty(st.Entry.Device) ? st.Title + "@" + st.Entry.Device : st.Title;
+        }
+
+        public string MonitorName(MonitorState st)
+        {
+            if (st == null) return "";
+            return Cfg.MonitorNameOrNull(MonitorKey(st)) ?? st.Title;
+        }
+
+        public void RenameMonitor(MonitorState st)
+        {
+            if (st == null) return;
+            string name = DarkDialog.Prompt(VisibleWin(), "Rinomina monitor",
+                "Nome da mostrare per questo monitor. Lascia vuoto per tornare a \"" + st.Title + "\".",
+                MonitorName(st), "Rinomina");
+            if (name == null) return;
+            name = Config.CleanName(name);
+            if (name != null && name == st.Title) name = null;
+            Cfg.SetMonitorName(MonitorKey(st), name);
+            SetStatus("Monitor: " + MonitorName(st), false);
+            Changed();
         }
 
         string InputName(uint v)
@@ -854,6 +936,9 @@ namespace MonitorDeck
             string want = arg.Replace(" ", "");
             foreach (KeyValuePair<string, uint> kv in inputs)
                 if (string.Equals(kv.Key.Replace(" ", ""), want, StringComparison.OrdinalIgnoreCase)) { SetChoice(Vcp.Input, kv.Value, true); return; }
+            // nome originale di un ingresso rinominato nella finestra: la scorciatoia continua a funzionare
+            foreach (KeyValuePair<string, uint> kv in inputs)
+                if (string.Equals(BaseInputName(st, kv.Value).Replace(" ", ""), want, StringComparison.OrdinalIgnoreCase)) { SetChoice(Vcp.Input, kv.Value, true); return; }
             // "HDMI" su un monitor che ha "HDMI 1" e "HDMI 2" (o viceversa): prende la prima che inizia cosi'
             foreach (KeyValuePair<string, uint> kv in inputs)
                 if (kv.Key.Replace(" ", "").StartsWith(want, StringComparison.OrdinalIgnoreCase)) { SetChoice(Vcp.Input, kv.Value, true); return; }
