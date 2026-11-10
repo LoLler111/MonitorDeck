@@ -17,7 +17,7 @@ namespace MonitorDeck
     static class AppInfo
     {
         public const string Name = "Monitor Deck";
-        public const string Version = "2.0.2";
+        public const string Version = "2.1.0";
         public const string RepoOwner = "LoLler111";
         public const string RepoName = "MonitorDeck";
         public const string RepoUrl = "https://github.com/" + RepoOwner + "/" + RepoName;

@@ -7,6 +7,8 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: Ã
 
 ## [Non rilasciato]
 
+## [2.1.0] - 2026-11-10
+
 ### Aggiunto
 - **Rinominare gli ingressi**: tasto destro sul pulsante â†’ "Rinomina". Utile quando il monitor dÃ  alla porta il nome sbagliato, come certi LG che chiamano "DVI" l'ingresso HDMI, o per scrivere direttamente "PS5" o "Portatile". Il nome vale per quel monitor, resta salvato e compare anche nel menu dell'area di notifica; "Torna al nome originale" lo annulla. Le scorciatoie con il nome originale continuano a funzionare.
 - **Rinominare i monitor**: clic sul nome del monitor â†’ "Rinomina". Il nuovo nome compare nella finestra, nell'elenco dei monitor e nell'indicatore a schermo. Due monitor dello stesso modello possono avere nomi diversi.
@@ -67,7 +69,8 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: Ã
 - Scorciatoie globali configurabili e indicatore a schermo.
 - Impostazioni in `MonitorDeck.ini` e avvio con Windows.
 
-[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.2...HEAD
+[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/LoLler111/MonitorDeck/compare/v1.0.0...v2.0.0
