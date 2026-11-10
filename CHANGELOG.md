@@ -7,6 +7,9 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: �
 
 ## [Non rilasciato]
 
+### Corretto
+- **"Il monitor non risponde" con monitor che supportano DDC/CI**: Windows può assegnare al monitor l'handle 0, che è valido, ma l'app lo scartava senza nemmeno inviare il comando. Succedeva soprattutto quando Monitor Deck è l'unico programma che parla col monitor (per esempio con un solo LG UltraGear in DisplayPort): ingressi, luminosità e "Tutti i controlli" restavano vuoti.
+
 ## [2.1.0] - 2026-11-10
 
 ### Aggiunto

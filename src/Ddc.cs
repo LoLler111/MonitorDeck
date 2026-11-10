@@ -171,7 +171,8 @@ namespace MonitorDeck
         {
             uint type;
             cur = 0; max = 0;
-            if (h == IntPtr.Zero) return false;
+            // Niente controllo su IntPtr.Zero: per dxva2 l'handle fisico 0 e' valido
+            // (di solito e' il primo monitor aperto nella sessione).
             if (Demo)
             {
                 Thread.Sleep(25);
@@ -196,7 +197,6 @@ namespace MonitorDeck
 
         public static bool Set(IntPtr h, byte code, uint value)
         {
-            if (h == IntPtr.Zero) return false;
             if (Demo)
             {
                 Thread.Sleep(50);
@@ -250,7 +250,6 @@ namespace MonitorDeck
         // Stringa delle capacita' MCCS: elenca i comandi VCP supportati dal monitor (lenta, ~1 s).
         public static string GetCapabilities(IntPtr h)
         {
-            if (h == IntPtr.Zero) return null;
             if (Demo) { Thread.Sleep(600); return h == (IntPtr)1 ? DemoCaps1 : DemoCaps2; }
             for (int i = 0; i < 3; i++)
             {
