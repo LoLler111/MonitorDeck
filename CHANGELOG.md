@@ -7,6 +7,8 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: Ã
 
 ## [Non rilasciato]
 
+## [2.2.0] - 2026-11-22
+
 ### Aggiunto
 - **Pulsante di accensione** accanto al nome del monitor: un clic spegne il monitor selezionato, un altro lo riaccende. Il simbolo rosso cambia con lo stato: acceso, spento o in standby, comando in corso. Da spento, al posto dei controlli la finestra spiega come riaccenderlo.
 - **Tipo di spegnimento**: tasto destro (o la freccetta) sul pulsante di accensione â†’ Standby, Sospensione, Spento (risparmio), Spento, oppure "Tutti gli schermi" come fa Windows. Il menu mostra solo i tipi che il monitor supporta e la scelta resta salvata per quel monitor. Solo lo spegnimento completo chiede conferma, perchÃ© spesso serve il tasto del monitor per riaccenderlo.
@@ -80,7 +82,8 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: Ã
 - Scorciatoie globali configurabili e indicatore a schermo.
 - Impostazioni in `MonitorDeck.ini` e avvio con Windows.
 
-[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.1.1...HEAD
+[Non rilasciato]: https://github.com/LoLler111/MonitorDeck/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/LoLler111/MonitorDeck/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/LoLler111/MonitorDeck/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/LoLler111/MonitorDeck/compare/v2.0.1...v2.0.2
