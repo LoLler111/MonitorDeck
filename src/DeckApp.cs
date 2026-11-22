@@ -216,7 +216,7 @@ namespace MonitorDeck
         public ContextMenuStrip BuildMenu(bool forTray)
         {
             ContextMenuStrip m = Theme.NewMenu();
-            ToolStripMenuItem miInputs = null, miMonitors;
+            ToolStripMenuItem miInputs = null, miPower = null, miMonitors;
             if (forTray)
             {
                 ToolStripMenuItem open = new ToolStripMenuItem("Apri Monitor Deck", null, delegate { ShowWindow(); });
@@ -225,6 +225,8 @@ namespace MonitorDeck
                 miInputs = new ToolStripMenuItem("Ingresso");
                 Theme.StyleDropDown(miInputs.DropDown);
                 m.Items.Add(miInputs);
+                miPower = new ToolStripMenuItem("Spegni monitor", null, delegate { TogglePower(); });
+                m.Items.Add(miPower);
             }
             miMonitors = new ToolStripMenuItem("Monitor");
             Theme.StyleDropDown(miMonitors.DropDown);
@@ -264,6 +266,12 @@ namespace MonitorDeck
                 miUpd.Enabled = !UpdateBusy;
                 miMonitors.DropDownItems.Clear();
                 FillMonitorItems(miMonitors.DropDownItems);
+                if (miPower != null)
+                {
+                    MonitorState ps = Current;
+                    miPower.Text = PowerIsOff(ps) ? "Accendi monitor" : "Spegni monitor (" + PowerModeName(PowerMode(ps)) + ")";
+                    miPower.Enabled = ps != null && !ps.PowerBusy;
+                }
                 if (miInputs != null)
                 {
                     miInputs.DropDownItems.Clear();
@@ -451,6 +459,7 @@ namespace MonitorDeck
             {
                 Dictionary<byte, VcpReading> res = new Dictionary<byte, VcpReading>();
                 foreach (byte c in Vcp.MainCodes) res[c] = Ddc.Read(h, c);
+                res[Vcp.Power] = Ddc.Read(h, Vcp.Power); // stato del pulsante di accensione
                 Ui(delegate
                 {
                     st.Merge(res);
@@ -460,7 +469,7 @@ namespace MonitorDeck
                         bool any = false;
                         foreach (VcpReading r in res.Values) if (r.Ok) any = true;
                         if (any) { if (StatusIsError || Status.StartsWith("Ricerca") || Status.StartsWith("Monitor:")) SetStatus("Connesso", false); }
-                        else SetStatus("Il monitor non risponde: DDC/CI è attivo nel suo menu?", true);
+                        else if (!PowerIsOff(st)) SetStatus("Il monitor non risponde: DDC/CI è attivo nel suo menu?", true); // da spento è normale
                     }
                     Changed();
                 });
@@ -819,6 +828,148 @@ namespace MonitorDeck
             SetChoice(Vcp.Mute, muted ? 2u : 1u, false);
         }
 
+        // ------------------------------------------------------------ accensione
+
+        // Stato letto (o impostato dall'app) nel codice D6: 1 = acceso, 2-5 = standby / spento
+        public bool PowerIsOff(MonitorState st)
+        {
+            if (st == null) return false;
+            int v = st.Cur(Vcp.Power);
+            return v >= 2 && v <= 5;
+        }
+
+        public bool PowerKnown(MonitorState st)
+        {
+            if (st == null) return false;
+            int v = st.Cur(Vcp.Power);
+            return v >= 1 && v <= 5;
+        }
+
+        // Tipi di spegnimento: quelli che il monitor dichiara per D6, più "tutti gli schermi" come fa Windows (0)
+        public List<uint> PowerModes(MonitorState st)
+        {
+            List<uint> list = new List<uint>();
+            if (st != null && (st.Supports(Vcp.Power) || !st.CapsTried))
+                foreach (uint v in st.ChoicesFor(Vcp.Power))
+                    if (v >= 2 && v <= 5 && !list.Contains(v)) list.Add(v);
+            list.Sort();
+            list.Add(0);
+            return list;
+        }
+
+        // Tipo usato dal pulsante: quello scelto per il monitor, altrimenti il più facile da riaccendere via DDC/CI
+        public uint PowerMode(MonitorState st)
+        {
+            List<uint> modes = PowerModes(st);
+            uint m;
+            if (st != null && Cfg.TryGetPowerMode(st.Title, out m) && modes.Contains(m)) return m;
+            foreach (uint p in new uint[] { 4, 2, 3, 5 }) if (modes.Contains(p)) return p;
+            return 0;
+        }
+
+        public static string PowerModeName(uint mode)
+        {
+            return mode == 0 ? "Tutti gli schermi (Windows)" : Vcp.ValueName(Vcp.Power, mode);
+        }
+
+        public static string PowerModeHint(uint mode)
+        {
+            switch (mode)
+            {
+                case 2: return "Il monitor resta pronto: di solito si riaccende da qui.";
+                case 3: return "Come lo standby, con consumo più basso.";
+                case 4: return "Schermo spento a basso consumo: di solito si riaccende da qui.";
+                case 5: return "Spegnimento completo: spesso serve il tasto del monitor per riaccenderlo.";
+                default: return "Spegne tutti gli schermi come fa Windows: si riaccendono muovendo il mouse o premendo un tasto.";
+            }
+        }
+
+        public void SetPowerMode(uint mode)
+        {
+            MonitorState st = Current;
+            if (st == null) return;
+            Cfg.SetPowerMode(st.Title, mode);
+            SetStatus("Spegnimento: " + PowerModeName(mode), false);
+            Changed();
+        }
+
+        public void TogglePower()
+        {
+            MonitorState st = Current;
+            if (st == null) return;
+            if (PowerIsOff(st)) PowerOn(st);
+            else PowerOff(st, PowerMode(st));
+        }
+
+        public void PowerOff(MonitorState st, uint mode)
+        {
+            if (st == null || st.PowerBusy) return;
+            if (mode == 0) { AllScreensOff(); return; }
+            if (mode == 5 && !DarkDialog.Ask(VisibleWin(), "Spegnere il monitor?",
+                "Con lo spegnimento completo molti monitor non si riaccendono più da qui: servirà il loro tasto di accensione. " +
+                "\"Spento (risparmio)\" e \"Standby\" di solito si riaccendono anche dall'app.",
+                null, "Spegni", "Annulla", true)) return;
+            SendPower(st, mode);
+        }
+
+        public void PowerOn(MonitorState st)
+        {
+            if (st == null || st.PowerBusy) return;
+            SendPower(st, 1);
+        }
+
+        void SendPower(MonitorState st, uint mode)
+        {
+            st.PowerBusy = true;
+            LastUserChange = DateTime.Now;
+            SetStatus(mode == 1 ? "Accensione…" : "Spegnimento…", false);
+            Changed();
+            IntPtr h = st.Entry.Handle;
+            worker.Post(delegate
+            {
+                bool sent = Ddc.Set(h, Vcp.Power, mode);
+                VcpReading r = null;
+                if (sent && mode == 1)
+                {
+                    // il monitor impiega un attimo a riaccendersi: poi si rilegge lo stato vero
+                    Thread.Sleep(1200);
+                    r = Ddc.Read(h, Vcp.Power);
+                }
+                else Thread.Sleep(400); // lascia vedere il pulsante "in corso"
+                Ui(delegate
+                {
+                    st.PowerBusy = false;
+                    LastUserChange = DateTime.Now;
+                    if (r != null && r.Ok && r.Cur >= 1 && r.Cur <= 5) st.SetFromMonitor(Vcp.Power, r);
+                    else if (sent) st.SetLocal(Vcp.Power, mode);
+                    if (!sent)
+                        SetStatus(mode == 1 ? "Il monitor non risponde: riaccendilo con il suo tasto" : "Comando non riuscito (Alimentazione)", true);
+                    else if (mode == 1 && PowerIsOff(st))
+                        SetStatus("Il monitor non si è riacceso: usa il suo tasto di accensione", true);
+                    else
+                        SetStatus(mode == 1 ? "Monitor acceso" : "Alimentazione: " + PowerModeName(mode), false);
+                    Changed();
+                    if (mode == 1 && sent) ReadMain(st);
+                });
+            });
+        }
+
+        void AllScreensOff()
+        {
+            SetStatus("Schermi spenti: muovi il mouse o premi un tasto per riaccenderli", false);
+            if (Ddc.Demo) return;
+            // breve attesa: il rilascio del clic o dei tasti della scorciatoia riaccenderebbe subito gli schermi
+            System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
+            t.Interval = 500;
+            t.Tick += delegate
+            {
+                t.Stop();
+                t.Dispose();
+                Native.SendMessage(win.Handle, 0x0112, (IntPtr)0xF170, (IntPtr)2); // WM_SYSCOMMAND, SC_MONITORPOWER, spento
+            };
+            t.Start();
+        }
+
         public void RunAction(VcpDef d)
         {
             MonitorState st = Current;
@@ -914,6 +1065,13 @@ namespace MonitorDeck
                     if (arg == "successivo" || arg == "next" || arg == "") SelectMonitor(CurrentIndex + 1, true);
                     else if (arg == "precedente" || arg == "prev") SelectMonitor(CurrentIndex - 1, true);
                     else if (int.TryParse(arg, out n)) SelectMonitor(n - 1, true);
+                    break;
+                case "alimentazione":
+                case "power":
+                    if (st == null) break;
+                    if (arg == "spegni" || arg == "off") PowerOff(st, PowerMode(st));
+                    else if (arg == "accendi" || arg == "on") PowerOn(st);
+                    else TogglePower();
                     break;
                 case "pannello":
                 case "panel":

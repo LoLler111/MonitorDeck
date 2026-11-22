@@ -11,6 +11,7 @@ Piccola app per Windows che comanda i monitor via **DDC/CI**: cambio ingresso, l
 ## Funzioni
 
 - **Finestra compatta** con i comandi principali: ingresso, luminosità, contrasto e volume (con muto).
+- **Pulsante di accensione** accanto al nome del monitor: spegne e riaccende il monitor selezionato, con il tipo di spegnimento che preferisci.
 - **Tutti i monitor collegati**, uno alla volta: frecce, clic sul nome o `Ctrl+Tab`.
 - **Tutti i controlli**: un pulsante allarga la finestra e mostra ogni comando supportato dal monitor (modalità immagine, profili colore, RGB, nitidezza, lingua del menu, alimentazione, ripristini, firmware…).
 - **Icona nell'area di notifica**: clic per aprire o chiudere la finestra, tasto destro per il menu rapido.
@@ -33,6 +34,8 @@ Sul monitor deve essere attivo **DDC/CI** (di solito nel menu del monitor, sotto
 | Frecce ‹ › sulla scheda del monitor | Passa al monitor precedente o successivo (e lo evidenzia a schermo) |
 | Clic sul nome del monitor | Elenco di tutti i monitor e **Rinomina** del monitor selezionato |
 | Tasto destro su un ingresso | Rinomina o nascondi l'ingresso |
+| Pulsante di accensione ⏻ | Spegne o riaccende il monitor selezionato |
+| Tasto destro (o freccetta) sul pulsante di accensione | Sceglie il tipo di spegnimento |
 | **Tutti i controlli** | Allarga o riduce la finestra |
 | Icona puntina | Sempre in primo piano |
 | `⋯` | Menu: avvio con Windows, aggiornamenti, impostazioni, informazioni |
@@ -51,7 +54,22 @@ La finestra si riapre nella posizione dove l'avevi lasciata, anche sul secondo s
 | `Ctrl+Alt+0` | Luminosità 0 |
 | `Ctrl+Alt+M` | Apri o chiudi la finestra |
 
-Si cambiano in `MonitorDeck.ini`, sezione `[Scorciatoie]`. Azioni disponibili: `ingresso:HDMI 2` (nome come nella finestra), `ingresso:15` (valore VCP), `ingresso:successivo`, `luminosita:+10`, `luminosita:30`, `contrasto:+5`, `volume:+5`, `muto`, `profilo:5`, `monitor:successivo`, `monitor:precedente`, `monitor:2`, `finestra`. Le scorciatoie agiscono sul monitor selezionato nella finestra.
+Si cambiano in `MonitorDeck.ini`, sezione `[Scorciatoie]`. Azioni disponibili: `ingresso:HDMI 2` (nome come nella finestra), `ingresso:15` (valore VCP), `ingresso:successivo`, `luminosita:+10`, `luminosita:30`, `contrasto:+5`, `volume:+5`, `muto`, `profilo:5`, `monitor:successivo`, `monitor:precedente`, `monitor:2`, `alimentazione` (spegne o riaccende), `alimentazione:spegni`, `alimentazione:accendi`, `finestra`. Le scorciatoie agiscono sul monitor selezionato nella finestra.
+
+### Accensione e spegnimento
+
+Il pulsante rosso accanto al nome del monitor ne mostra lo stato: simbolo acceso quando il monitor è acceso, scuro quando è spento o in standby, lampeggiante mentre il comando è in corso, grigio se il monitor non dice in che stato è. Un clic lo spegne; da spento, un clic lo riaccende.
+
+Con il **tasto destro** (o la freccetta in basso a destra) scegli il tipo di spegnimento, che resta salvato per quel monitor. Il menu mostra solo i tipi che il monitor dichiara:
+
+| Tipo | Cosa succede |
+|---|---|
+| Standby / Sospensione | Il monitor resta pronto: di solito si riaccende anche dall'app |
+| Spento (risparmio) | Schermo spento a basso consumo: di solito si riaccende anche dall'app (predefinito) |
+| Spento | Spegnimento completo: spesso serve il tasto del monitor per riaccenderlo (chiede conferma) |
+| Tutti gli schermi (Windows) | Spegne tutti gli schermi come fa Windows: si riaccendono muovendo il mouse o premendo un tasto |
+
+Da spento, molti monitor non rispondono più ai comandi DDC/CI: se il pulsante non lo riaccende, usa il tasto di accensione del monitor. Il comando è anche nel menu dell'icona nell'area di notifica, comodo quando la finestra è proprio sul monitor spento.
 
 ### Ingressi
 
@@ -85,7 +103,7 @@ E0=Livello ombre
 
 - In modalità HDR molti monitor bloccano la luminosità: non è un limite dell'app.
 - Le app del produttore (Alienware, Dell Display Manager…) possono restare aperte. Se però applicano profili automatici per applicazione, reimposteranno la luminosità quando cambi finestra.
-- Alcuni monitor, una volta spenti via DDC/CI, si riaccendono solo con il tasto: l'app chiede conferma prima.
+- Alcuni monitor, una volta spenti via DDC/CI, si riaccendono solo con il tasto: per questo il pulsante usa di base "Spento (risparmio)" e chiede conferma prima dello spegnimento completo.
 - Molti LG (per esempio gli UltraGear) ignorano il comando standard per cambiare ingresso. Con una scheda NVIDIA l'app invia anche il comando LG dedicato. Una volta passato a un altro ingresso, il monitor non riceve più comandi dal PC: per tornare usa il tasto del monitor.
 
 ## Compilare

@@ -22,6 +22,8 @@ namespace MonitorDeck
         // Nomi scelti dall'utente nella finestra (tasto destro): monitor e ingressi di un monitor
         public Dictionary<string, string> MonitorNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, Dictionary<uint, string>> InputRenames = new Dictionary<string, Dictionary<uint, string>>(StringComparer.OrdinalIgnoreCase);
+        // Tipo di spegnimento del pulsante di accensione, per nome del monitor: valore VCP D6 (0 = tutti gli schermi, come Windows)
+        public Dictionary<string, uint> PowerModes = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
         // Nomi dei codici VCP: chiave "" = tutti i monitor, altrimenti nome del monitor
         public Dictionary<string, Dictionary<byte, string>> CodeNames = new Dictionary<string, Dictionary<byte, string>>(StringComparer.OrdinalIgnoreCase);
         public List<KeyValuePair<string, uint>> Inputs = new List<KeyValuePair<string, uint>>();
@@ -114,6 +116,10 @@ namespace MonitorDeck
                     foreach (string p in v.Split(new char[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries))
                         if (uint.TryParse(p, out uv) && !l.Contains(uv)) l.Add(uv);
                     if (l.Count > 0) c.HiddenInputs[k] = l;
+                }
+                else if (ls == "spegnimento")
+                {
+                    if (uint.TryParse(v, out uv) && (uv == 0 || (uv >= 2 && uv <= 5))) c.PowerModes[k] = uv;
                 }
                 else if (ls == "nomimonitor")
                 {
@@ -272,6 +278,21 @@ namespace MonitorDeck
             List<KeyValuePair<string, string>> vals = new List<KeyValuePair<string, string>>();
             vals.Add(new KeyValuePair<string, string>(monitor, values.Count == 0 ? null : string.Join(",", parts.ToArray())));
             SetKeys("IngressiNascosti", vals, false);
+        }
+
+        public bool TryGetPowerMode(string monitor, out uint mode)
+        {
+            mode = 0;
+            return monitor != null && PowerModes.TryGetValue(monitor, out mode);
+        }
+
+        public void SetPowerMode(string monitor, uint mode)
+        {
+            if (string.IsNullOrEmpty(monitor)) return;
+            PowerModes[monitor] = mode;
+            List<KeyValuePair<string, string>> vals = new List<KeyValuePair<string, string>>();
+            vals.Add(new KeyValuePair<string, string>(monitor, mode.ToString(CultureInfo.InvariantCulture)));
+            SetKeys("Spegnimento", vals, false);
         }
 
         public string MonitorNameOrNull(string key)

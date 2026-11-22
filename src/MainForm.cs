@@ -25,6 +25,7 @@ namespace MonitorDeck
         readonly List<PillButton> inputBtns = new List<PillButton>();
         Slider slBright, slContrast, slVol;
         PillButton btnMute, btnTop;
+        PowerButton btnPower;
         DropButton btnExpand;
         Banner banner;
         MonitorCard card;
@@ -133,7 +134,7 @@ namespace MonitorDeck
             sb.Append(app.Monitors.Count).Append('|').Append(app.Expanded).Append('|').Append(app.Update != null);
             if (st != null)
             {
-                sb.Append('|').Append(st.Key).Append(st.MainRead)
+                sb.Append('|').Append(st.Key).Append(st.MainRead).Append(app.PowerIsOff(st) ? st.Cur(Vcp.Power) : 1)
                   .Append(st.Supports(Vcp.Input)).Append(st.Supports(Vcp.Brightness))
                   .Append(st.Supports(Vcp.Volume)).Append(st.Supports(Vcp.Mute)).Append(st.Supports(Vcp.Contrast)).Append(app.HiddenInputCount(st));
                 foreach (KeyValuePair<string, uint> kv in app.InputsFor(st)) sb.Append(kv.Key).Append(kv.Value);
@@ -158,6 +159,18 @@ namespace MonitorDeck
                     btnMute.Text = muted ? Glyphs.Mute : Glyphs.Volume;
                     btnMute.TextColor = muted ? Theme.Warn : (Color?)null;
                     tips.SetToolTip(btnMute, muted ? "Riattiva audio" : "Disattiva audio");
+                }
+                if (btnPower != null)
+                {
+                    PowerState ps = st.PowerBusy ? PowerState.Busy
+                        : app.PowerIsOff(st) ? PowerState.Off
+                        : app.PowerKnown(st) ? PowerState.On : PowerState.Unknown;
+                    btnPower.State = ps;
+                    string tip = ps == PowerState.Off ? "Accendi il monitor"
+                        : ps == PowerState.Busy ? "Comando in corso…"
+                        : "Spegni: " + DeckApp.PowerModeName(app.PowerMode(st));
+                    if (tips.GetToolTip(btnPower) != tip + "\nTasto destro o freccia: tipo di spegnimento")
+                        tips.SetToolTip(btnPower, tip + "\nTasto destro o freccia: tipo di spegnimento");
                 }
                 foreach (KeyValuePair<byte, Slider> kv in dSliders) SyncSlider(kv.Value, st, kv.Key);
                 foreach (KeyValuePair<byte, DropButton> kv in dDrops)
@@ -275,7 +288,19 @@ namespace MonitorDeck
 
             int y = S(56);
             card = new MonitorCard(this, app);
-            card.Bounds = new Rectangle(pad, y, W - 2 * pad, S(62));
+            int cardW = W - 2 * pad;
+            btnPower = null;
+            if (st != null)
+            {
+                // pulsante di accensione accanto alla scheda: vale per il monitor selezionato
+                cardW -= S(62) + gap;
+                btnPower = new PowerButton(this);
+                btnPower.Bounds = new Rectangle(pad + cardW + gap, y, S(62), S(62));
+                btnPower.Toggle += delegate { app.TogglePower(); };
+                btnPower.MenuRequested += delegate { ShowPowerMenu(btnPower); };
+                left.Controls.Add(btnPower);
+            }
+            card.Bounds = new Rectangle(pad, y, cardW, S(62));
             left.Controls.Add(card);
             y += S(62) + S(20);
 
@@ -297,6 +322,18 @@ namespace MonitorDeck
             {
                 left.AddText(new Rectangle(pad, y, W - 2 * pad, S(20)), "Lettura del monitor…", fRow, Theme.Muted, TextFormatFlags.Left);
                 y += S(20) + S(20);
+            }
+            else if (app.PowerIsOff(st))
+            {
+                // da spento il monitor non risponde ai comandi: al posto dei controlli, come riaccenderlo
+                int pv = st.Cur(Vcp.Power);
+                string head = pv == 2 ? "Monitor in standby" : pv == 3 ? "Monitor in sospensione" : pv == 4 ? "Monitor spento (risparmio)" : "Monitor spento";
+                left.AddText(new Rectangle(pad, y, W - 2 * pad, S(20)), head, fButton, Theme.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+                y += S(24);
+                left.AddText(new Rectangle(pad, y, W - 2 * pad, S(60)),
+                    "Premi il pulsante rosso qui sopra per riaccenderlo. Se non risponde, usa il tasto di accensione del monitor.",
+                    fRow, Theme.Muted, TextFormatFlags.WordBreak);
+                y += S(60) + S(16);
             }
             else
             {
@@ -682,6 +719,35 @@ namespace MonitorDeck
             m.Show(b, new Point(0, b.Height + S(2)));
         }
 
+        void ShowPowerMenu(Control anchor)
+        {
+            MonitorState st = app.Current;
+            if (st == null) return;
+            ContextMenuStrip m = Theme.NewMenu();
+            m.ShowItemToolTips = true;
+            ToolStripMenuItem title = new ToolStripMenuItem("Tipo di spegnimento");
+            title.Enabled = false;
+            m.Items.Add(title);
+            uint cur = app.PowerMode(st);
+            foreach (uint mode in app.PowerModes(st))
+            {
+                uint val = mode;
+                if (mode == 0 && m.Items.Count > 1) m.Items.Add(new ToolStripSeparator());
+                ToolStripMenuItem it = new ToolStripMenuItem(DeckApp.PowerModeName(mode));
+                it.Checked = mode == cur;
+                it.ToolTipText = DeckApp.PowerModeHint(mode);
+                it.Click += delegate { app.SetPowerMode(val); };
+                m.Items.Add(it);
+            }
+            m.Items.Add(new ToolStripSeparator());
+            bool off = app.PowerIsOff(st);
+            ToolStripMenuItem now = new ToolStripMenuItem(off ? "Accendi" : "Spegni adesso", null, delegate { app.TogglePower(); });
+            now.Enabled = !st.PowerBusy;
+            m.Items.Add(now);
+            m.Closed += delegate { BeginInvoke((Action)delegate { m.Dispose(); }); };
+            m.Show(anchor, new Point(0, anchor.Height + S(2)));
+        }
+
         public void ShowMonitorMenu(Control anchor)
         {
             ContextMenuStrip m = Theme.NewMenu();
@@ -821,6 +887,10 @@ namespace MonitorDeck
                 if (app.Monitors.Count > 1) sub += "  ·  " + (app.CurrentIndex + 1) + " di " + app.Monitors.Count;
             }
             int side = f.S(48);
+            // accanto al pulsante di accensione la scheda è più stretta: se non ci sta, si toglie "principale"
+            if (st != null && st.Entry.Primary &&
+                TextRenderer.MeasureText(sub, f.fSub, Size.Empty, TextFormatFlags.NoPadding).Width > Width - 2 * side)
+                sub = sub.Replace("  ·  principale", "");
             TextRenderer.DrawText(g, name, f.fName, new Rectangle(side, f.S(10), Width - 2 * side, f.S(24)), Theme.Text,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
             TextRenderer.DrawText(g, sub, f.fSub, new Rectangle(side, f.S(34), Width - 2 * side, f.S(18)), Theme.Muted,
@@ -864,6 +934,137 @@ namespace MonitorDeck
             if (!app.UpdateBusy)
                 TextRenderer.DrawText(g, "Aggiorna", f.fButton, new Rectangle(Width - pad - f.S(90), 0, f.S(90), Height), Theme.Accent,
                     TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        }
+    }
+
+    enum PowerState { Unknown, On, Off, Busy }
+
+    // Pulsante di accensione: simbolo rosso su fondo scuro, acceso o spento secondo lo stato del monitor.
+    // Clic = accendi/spegni; freccetta in basso a destra o tasto destro = tipo di spegnimento.
+    class PowerButton : Control
+    {
+        static readonly Color RedOn = Color.FromArgb(245, 72, 72);
+        static readonly Color RedOff = Color.FromArgb(112, 46, 46);
+        static readonly Color RingOn = Color.FromArgb(92, 40, 42);
+        static readonly Color FillOff = Color.FromArgb(31, 31, 35);
+
+        readonly MainForm f;
+        readonly Timer blink = new Timer();
+        readonly Font chevFont;
+        PowerState state = PowerState.Unknown;
+        bool hover, down, hoverChev, phase;
+        MouseButtons pressed;
+
+        public event EventHandler Toggle, MenuRequested;
+
+        public PowerButton(MainForm f)
+        {
+            this.f = f;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            SetStyle(ControlStyles.Selectable, false);
+            Cursor = Cursors.Hand;
+            chevFont = new Font(Theme.IconFontName, 7f);
+            blink.Interval = 380;
+            blink.Tick += delegate { phase = !phase; Invalidate(); };
+        }
+
+        public PowerState State
+        {
+            get { return state; }
+            set
+            {
+                if (state == value) return;
+                state = value;
+                if (state == PowerState.Busy) { phase = false; blink.Start(); } else blink.Stop();
+                Invalidate();
+            }
+        }
+
+        Rectangle ChevRect
+        {
+            get { int sz = f.S(18); return new Rectangle(Width - sz - f.S(3), Height - sz - f.S(3), sz, sz); }
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { hover = hoverChev = down = false; Invalidate(); base.OnMouseLeave(e); }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            bool c = ChevRect.Contains(e.Location);
+            if (c != hoverChev) { hoverChev = c; Invalidate(); }
+            base.OnMouseMove(e);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            pressed = e.Button;
+            down = e.Button == MouseButtons.Left && !ChevRect.Contains(e.Location);
+            Invalidate();
+            base.OnMouseDown(e);
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            down = false;
+            if (!IsDisposed) Invalidate();
+            base.OnMouseUp(e);
+            if (!ClientRectangle.Contains(e.Location) || e.Button != pressed) return;
+            if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && ChevRect.Contains(e.Location)))
+            {
+                if (MenuRequested != null) MenuRequested(this, EventArgs.Empty);
+            }
+            else if (e.Button == MouseButtons.Left && state != PowerState.Busy)
+            {
+                if (Toggle != null) Toggle(this, EventArgs.Empty);
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { blink.Dispose(); chevFont.Dispose(); }
+            base.Dispose(disposing);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            RectangleF r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
+            float rad = f.S(12);
+
+            Color fill = state == PowerState.Off ? FillOff : Theme.Card;
+            if (down) fill = Theme.CardDown;
+            else if (hover && !hoverChev) fill = Theme.CardHover;
+            Theme.FillRound(g, r, rad, fill);
+            Color ring = state == PowerState.On ? RingOn : hover ? Theme.Border : Color.Empty;
+            if (ring != Color.Empty)
+                using (GraphicsPath p = Theme.Round(r, rad))
+                using (Pen pen = new Pen(ring)) g.DrawPath(pen, p);
+
+            Color sym;
+            switch (state)
+            {
+                case PowerState.On: sym = RedOn; break;
+                case PowerState.Off: sym = hover && !hoverChev ? Color.FromArgb(150, 60, 60) : RedOff; break;
+                case PowerState.Busy: sym = phase ? RedOff : RedOn; break;
+                default: sym = Color.FromArgb(96, 96, 104); break;
+            }
+
+            // simbolo di accensione: cerchio aperto in alto + barretta verticale
+            float cx = Width / 2f, cy = Height / 2f + f.S(1), R = Height * 0.21f;
+            using (Pen pen = new Pen(sym, Math.Max(2f, f.S(2.6f))))
+            {
+                pen.StartCap = pen.EndCap = LineCap.Round;
+                g.DrawArc(pen, cx - R, cy - R, 2 * R, 2 * R, 270 + 38, 360 - 76);
+                g.DrawLine(pen, cx, cy - R * 1.28f, cx, cy - R * 0.22f);
+            }
+
+            Rectangle cr = ChevRect;
+            if (hoverChev) Theme.FillRound(g, cr, f.S(5), Theme.Border);
+            TextRenderer.DrawText(g, Glyphs.Down, chevFont, cr, hoverChev ? Theme.Text : Theme.Muted,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
         }
     }
 }

@@ -10,6 +10,7 @@ namespace MonitorDeck
         public bool MainRead;
         public bool CapsTried, CapsOk, CapsLoading;
         public bool DetailsRead, DetailsLoading;
+        public bool PowerBusy;          // comando di accensione/spegnimento in corso
         public string Model, Mccs;
         public List<byte> Codes = new List<byte>();
         public Dictionary<byte, List<uint>> CapValues = new Dictionary<byte, List<uint>>();

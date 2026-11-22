@@ -7,6 +7,11 @@ Ogni release pubblicata su GitHub usa come note la sezione della sua versione: �
 
 ## [Non rilasciato]
 
+### Aggiunto
+- **Pulsante di accensione** accanto al nome del monitor: un clic spegne il monitor selezionato, un altro lo riaccende. Il simbolo rosso cambia con lo stato: acceso, spento o in standby, comando in corso. Da spento, al posto dei controlli la finestra spiega come riaccenderlo.
+- **Tipo di spegnimento**: tasto destro (o la freccetta) sul pulsante di accensione → Standby, Sospensione, Spento (risparmio), Spento, oppure "Tutti gli schermi" come fa Windows. Il menu mostra solo i tipi che il monitor supporta e la scelta resta salvata per quel monitor. Solo lo spegnimento completo chiede conferma, perché spesso serve il tasto del monitor per riaccenderlo.
+- Accendi/spegni anche dal menu dell'icona nell'area di notifica e con le scorciatoie `alimentazione`, `alimentazione:spegni` e `alimentazione:accendi`.
+
 ## [2.1.1] - 2026-11-10
 
 ### Corretto
